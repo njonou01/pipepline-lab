@@ -20,3 +20,5 @@ venv/
 .vscode/
 .idea/
 .env/
+**/.pub
+**/.pem
