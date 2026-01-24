@@ -1,0 +1,165 @@
+import streamlit as st
+import pandas as pd
+import boto3
+import os
+from datetime import datetime
+import plotly.express as px
+
+# Configuration
+st.set_page_config(
+    page_title="Data Lake Dashboard",
+    page_icon="📊",
+    layout="wide"
+)
+
+# Variables d'environnement
+AWS_REGION = os.getenv('AWS_REGION', '{{ aws_region }}')
+RAW_BUCKET = os.getenv('RAW_BUCKET', '{{ raw_bucket }}')
+PROCESSED_BUCKET = os.getenv('PROCESSED_BUCKET', '{{ processed_bucket }}')
+CURATED_BUCKET = os.getenv('CURATED_BUCKET', '{{ curated_bucket }}')
+GLUE_DATABASE = os.getenv('GLUE_DATABASE', '{{ glue_database }}')
+
+# Clients AWS
+s3 = boto3.client('s3', region_name=AWS_REGION)
+
+# =============================================================================
+# SIDEBAR
+# =============================================================================
+st.sidebar.title("📊 Data Lake")
+st.sidebar.markdown("---")
+
+page = st.sidebar.selectbox(
+    "Navigation",
+    ["Overview", "S3 Explorer", "Athena Query", "Analytics", "Pipeline"]
+)
+
+st.sidebar.markdown("---")
+st.sidebar.info(f"Region: {AWS_REGION}\nDatabase: {GLUE_DATABASE}")
+
+# =============================================================================
+# HELPERS
+# =============================================================================
+def get_bucket_stats(bucket_name):
+    try:
+        response = s3.list_objects_v2(Bucket=bucket_name, MaxKeys=1000)
+        count = response.get('KeyCount', 0)
+        size = sum(obj.get('Size', 0) for obj in response.get('Contents', [])) / (1024*1024)
+        return count, size
+    except Exception as e:
+        return 0, 0
+
+# =============================================================================
+# PAGES
+# =============================================================================
+if page == "Overview":
+    st.title("📊 Data Lake Overview")
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    raw_count, raw_size = get_bucket_stats(RAW_BUCKET)
+    proc_count, proc_size = get_bucket_stats(PROCESSED_BUCKET)
+    cur_count, cur_size = get_bucket_stats(CURATED_BUCKET)
+
+    col1.metric("Raw Zone", f"{raw_count} files", f"{raw_size:.1f} MB")
+    col2.metric("Processed Zone", f"{proc_count} files", f"{proc_size:.1f} MB")
+    col3.metric("Curated Zone", f"{cur_count} files", f"{cur_size:.1f} MB")
+    col4.metric("Database", GLUE_DATABASE, "Active")
+
+    st.markdown("---")
+    st.subheader("Architecture")
+    st.code("""
+    S3 Raw → Glue ETL → S3 Processed → Glue ETL → S3 Curated
+                              ↓
+                         Glue Catalog
+                              ↓
+                           Athena
+    """)
+
+elif page == "S3 Explorer":
+    st.title("📦 S3 Explorer")
+
+    bucket = st.selectbox("Bucket", [RAW_BUCKET, PROCESSED_BUCKET, CURATED_BUCKET])
+    prefix = st.text_input("Prefix", "")
+
+    if bucket:
+        try:
+            response = s3.list_objects_v2(Bucket=bucket, Prefix=prefix, MaxKeys=50)
+            objects = response.get('Contents', [])
+
+            if objects:
+                df = pd.DataFrame([{
+                    'Key': obj['Key'],
+                    'Size (KB)': round(obj['Size'] / 1024, 2),
+                    'Modified': obj['LastModified'].strftime('%Y-%m-%d %H:%M')
+                } for obj in objects])
+                st.dataframe(df, use_container_width=True)
+            else:
+                st.info("No objects found")
+        except Exception as e:
+            st.error(f"Error: {e}")
+
+elif page == "Athena Query":
+    st.title("🔍 Athena Query")
+
+    query = st.text_area("SQL Query", f"SELECT * FROM {GLUE_DATABASE}.processed_orders LIMIT 10")
+
+    st.info("Connect to Athena with PyAthena to execute queries")
+    st.code(f"""
+from pyathena import connect
+import pandas as pd
+
+conn = connect(
+    s3_staging_dir='s3://{CURATED_BUCKET}/athena-results/',
+    region_name='{AWS_REGION}'
+)
+df = pd.read_sql('{query}', conn)
+    """)
+
+elif page == "Analytics":
+    st.title("📈 Analytics")
+
+    # Demo data
+    dates = pd.date_range(start='2025-01-01', periods=30, freq='D')
+    demo = pd.DataFrame({
+        'date': dates,
+        'revenue': [1000 + i*50 + (i%7)*100 for i in range(30)],
+        'orders': [10 + i + (i%5)*2 for i in range(30)]
+    })
+
+    fig = px.line(demo, x='date', y='revenue', title='Daily Revenue')
+    st.plotly_chart(fig, use_container_width=True)
+
+    col1, col2 = st.columns(2)
+    with col1:
+        fig2 = px.bar(demo.tail(7), x='date', y='orders', title='Orders (Last 7 days)')
+        st.plotly_chart(fig2, use_container_width=True)
+
+    with col2:
+        status = pd.DataFrame({'status': ['completed', 'pending', 'shipped'], 'count': [150, 30, 45]})
+        fig3 = px.pie(status, values='count', names='status', title='Order Status')
+        st.plotly_chart(fig3, use_container_width=True)
+
+elif page == "Pipeline":
+    st.title("⚡ Pipeline Status")
+
+    try:
+        sfn = boto3.client('stepfunctions', region_name=AWS_REGION)
+        machines = sfn.list_state_machines()['stateMachines']
+
+        for sm in machines:
+            st.subheader(sm['name'])
+            execs = sfn.list_executions(stateMachineArn=sm['stateMachineArn'], maxResults=5)['executions']
+
+            if execs:
+                df = pd.DataFrame([{
+                    'Name': e['name'][:30],
+                    'Status': e['status'],
+                    'Start': e['startDate'].strftime('%Y-%m-%d %H:%M')
+                } for e in execs])
+                st.dataframe(df, use_container_width=True)
+    except Exception as e:
+        st.error(f"Error: {e}")
+
+# Footer
+st.markdown("---")
+st.caption(f"Last update: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")

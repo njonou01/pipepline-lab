@@ -1,0 +1,22 @@
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/.terraform.lock.hcl
+terraform/builds/
+
+# Keys
+*.pem
+
+# Python
+__pycache__/
+*.pyc
+venv/
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+.env/

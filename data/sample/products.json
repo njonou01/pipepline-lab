@@ -1,0 +1,5 @@
+{"product_id": "PROD-001", "name": "T-Shirt Basic", "category": "Clothing", "price": 29.99, "stock": 500}
+{"product_id": "PROD-002", "name": "Running Shoes Pro", "category": "Footwear", "price": 149.99, "stock": 200}
+{"product_id": "PROD-003", "name": "Laptop Ultra 15", "category": "Electronics", "price": 599.99, "stock": 50}
+{"product_id": "PROD-004", "name": "USB Cable 2m", "category": "Accessories", "price": 9.99, "stock": 1000}
+{"product_id": "PROD-005", "name": "Wireless Mouse", "category": "Electronics", "price": 79.99, "stock": 300}

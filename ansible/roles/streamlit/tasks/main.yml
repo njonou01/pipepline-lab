@@ -1,0 +1,150 @@
+---
+# =============================================================================
+# STREAMLIT ROLE - Installation et configuration
+# =============================================================================
+
+- name: Update apt cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: Install system packages
+  apt:
+    name:
+      - python3
+      - python3-pip
+      - python3-venv
+      - nginx
+      - acl
+    state: present
+
+# -----------------------------------------------------------------------------
+# USER & DIRECTORIES
+# -----------------------------------------------------------------------------
+- name: Create streamlit user
+  user:
+    name: "{{ app_user }}"
+    shell: /bin/bash
+    create_home: yes
+    state: present
+
+- name: Create application directory
+  file:
+    path: "{{ app_dir }}"
+    state: directory
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    mode: '0755'
+
+# -----------------------------------------------------------------------------
+# PYTHON ENVIRONMENT (run as root, fix ownership after)
+# -----------------------------------------------------------------------------
+- name: Create Python virtual environment
+  command: python3 -m venv {{ app_dir }}/venv
+  args:
+    creates: "{{ app_dir }}/venv/bin/activate"
+
+- name: Upgrade pip
+  pip:
+    name: pip
+    state: latest
+    virtualenv: "{{ app_dir }}/venv"
+
+- name: Install Python packages
+  pip:
+    name: "{{ python_packages }}"
+    virtualenv: "{{ app_dir }}/venv"
+
+- name: Fix venv ownership
+  file:
+    path: "{{ app_dir }}/venv"
+    state: directory
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    recurse: yes
+
+# -----------------------------------------------------------------------------
+# APPLICATION
+# -----------------------------------------------------------------------------
+- name: Deploy environment file
+  template:
+    src: env.j2
+    dest: "{{ app_dir }}/.env"
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    mode: '0600'
+  notify: Restart streamlit
+
+- name: Deploy Streamlit application
+  template:
+    src: app.py.j2
+    dest: "{{ app_dir }}/app.py"
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    mode: '0644'
+  notify: Restart streamlit
+
+- name: Create Streamlit config directory
+  file:
+    path: "{{ app_dir }}/.streamlit"
+    state: directory
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    mode: '0755'
+
+- name: Deploy Streamlit config
+  template:
+    src: config.toml.j2
+    dest: "{{ app_dir }}/.streamlit/config.toml"
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    mode: '0644'
+  notify: Restart streamlit
+
+# -----------------------------------------------------------------------------
+# SYSTEMD SERVICE
+# -----------------------------------------------------------------------------
+- name: Deploy systemd service
+  template:
+    src: streamlit.service.j2
+    dest: /etc/systemd/system/streamlit.service
+    mode: '0644'
+  notify:
+    - Reload systemd
+    - Restart streamlit
+
+- name: Enable and start streamlit service
+  systemd:
+    name: streamlit
+    enabled: yes
+    state: started
+    daemon_reload: yes
+
+# -----------------------------------------------------------------------------
+# NGINX
+# -----------------------------------------------------------------------------
+- name: Deploy Nginx configuration
+  template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/sites-available/streamlit
+    mode: '0644'
+  notify: Restart nginx
+
+- name: Enable Nginx site
+  file:
+    src: /etc/nginx/sites-available/streamlit
+    dest: /etc/nginx/sites-enabled/streamlit
+    state: link
+  notify: Restart nginx
+
+- name: Remove default Nginx site
+  file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: Restart nginx
+
+- name: Start and enable Nginx
+  systemd:
+    name: nginx
+    enabled: yes
+    state: started

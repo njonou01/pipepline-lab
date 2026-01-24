@@ -1,0 +1,7 @@
+{"customer_id": "CUST-101", "email": "alice@example.com", "first_name": "Alice", "last_name": "Martin", "country": "FR", "created_at": "2024-06-15T08:00:00Z"}
+{"customer_id": "CUST-102", "email": "bob@example.com", "first_name": "Bob", "last_name": "Smith", "country": "US", "created_at": "2024-07-20T14:30:00Z"}
+{"customer_id": "CUST-103", "email": "claire@example.com", "first_name": "Claire", "last_name": "Dubois", "country": "FR", "created_at": "2024-08-10T09:15:00Z"}
+{"customer_id": "CUST-104", "email": "david@example.com", "first_name": "David", "last_name": "Johnson", "country": "UK", "created_at": "2024-09-05T11:45:00Z"}
+{"customer_id": "CUST-105", "email": "emma@example.com", "first_name": "Emma", "last_name": "Mueller", "country": "DE", "created_at": "2024-10-12T16:00:00Z"}
+{"customer_id": "CUST-106", "email": "francois@example.com", "first_name": "François", "last_name": "Bernard", "country": "FR", "created_at": "2024-11-08T10:30:00Z"}
+{"customer_id": "CUST-107", "email": "grace@example.com", "first_name": "Grace", "last_name": "Lee", "country": "US", "created_at": "2024-12-01T13:20:00Z"}

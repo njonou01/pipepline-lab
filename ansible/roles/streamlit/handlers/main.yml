@@ -1,0 +1,14 @@
+---
+- name: Reload systemd
+  systemd:
+    daemon_reload: yes
+
+- name: Restart streamlit
+  systemd:
+    name: streamlit
+    state: restarted
+
+- name: Restart nginx
+  systemd:
+    name: nginx
+    state: restarted
