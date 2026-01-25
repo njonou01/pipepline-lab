@@ -4,15 +4,27 @@ resource "aws_sfn_state_machine" "etl_pipeline" {
   role_arn = local.lab_role_arn
 
   definition = jsonencode({
-    Comment = "Pipeline ETL: Raw -> Processed -> Curated"
-    StartAt = "TransformOrders"
+    Comment = "Pipeline ETL UCCNCT: Raw -> Processed -> Curated"
+    StartAt = "TransformAllSources"
     States = {
-      TransformOrders = {
-        Type     = "Task"
-        Resource = "arn:aws:states:::glue:startJobRun.sync"
-        Parameters = {
-          JobName = aws_glue_job.transform_orders.name
-        }
+      TransformAllSources = {
+        Type    = "Parallel"
+        Comment = "Transform all 5 sources in parallel"
+        Branches = [
+          for source in ["bluesky", "nostr", "hackernews", "stackoverflow", "rss"] : {
+            StartAt = "Transform-${source}"
+            States = {
+              "Transform-${source}" = {
+                Type     = "Task"
+                Resource = "arn:aws:states:::glue:startJobRun.sync"
+                Parameters = {
+                  JobName = "${local.name_prefix}-transform-${source}"
+                }
+                End = true
+              }
+            }
+          }
+        ]
         Catch = [{
           ErrorEquals = ["States.ALL"]
           Next        = "HandleError"
@@ -34,11 +46,36 @@ resource "aws_sfn_state_machine" "etl_pipeline" {
       }
 
       UpdateCatalog = {
-        Type     = "Task"
-        Resource = "arn:aws:states:::aws-sdk:glue:startCrawler"
-        Parameters = {
-          Name = aws_glue_crawler.processed.name
-        }
+        Type     = "Parallel"
+        Comment  = "Update both crawlers"
+        Branches = [
+          {
+            StartAt = "CrawlProcessed"
+            States = {
+              CrawlProcessed = {
+                Type     = "Task"
+                Resource = "arn:aws:states:::aws-sdk:glue:startCrawler"
+                Parameters = {
+                  Name = aws_glue_crawler.processed.name
+                }
+                End = true
+              }
+            }
+          },
+          {
+            StartAt = "CrawlCurated"
+            States = {
+              CrawlCurated = {
+                Type     = "Task"
+                Resource = "arn:aws:states:::aws-sdk:glue:startCrawler"
+                Parameters = {
+                  Name = aws_glue_crawler.curated.name
+                }
+                End = true
+              }
+            }
+          }
+        ]
         Catch = [{
           ErrorEquals = ["States.ALL"]
           Next        = "Success"
@@ -71,7 +108,7 @@ resource "aws_sfn_state_machine" "etl_pipeline" {
 
 resource "aws_cloudwatch_event_rule" "daily_etl" {
   name                = "${local.name_prefix}-daily-etl"
-  description         = "Trigger ETL pipeline daily"
+  description         = "Trigger ETL pipeline daily at 6 AM UTC"
   schedule_expression = "cron(0 6 * * ? *)"
 
   tags = {

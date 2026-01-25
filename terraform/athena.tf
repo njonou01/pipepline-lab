@@ -24,37 +24,96 @@ resource "aws_athena_workgroup" "main" {
   }
 }
 
-resource "aws_athena_named_query" "daily_sales" {
-  name        = "daily-sales"
-  description = "Daily sales report"
+resource "aws_athena_named_query" "trending_keywords" {
+  name        = "trending-keywords"
+  description = "Top trending keywords today"
   workgroup   = aws_athena_workgroup.main.id
   database    = aws_glue_catalog_database.main.name
 
   query = <<-EOF
     SELECT
-      DATE(order_date) as order_day,
-      COUNT(*) as total_orders,
-      SUM(total_amount) as revenue
-    FROM processed_orders
-    GROUP BY DATE(order_date)
-    ORDER BY order_day DESC
+      keyword,
+      mentions,
+      sources_count
+    FROM trending_keywords
+    WHERE date = CURRENT_DATE
+    ORDER BY mentions DESC
+    LIMIT 50
   EOF
 }
 
-resource "aws_athena_named_query" "top_products" {
-  name        = "top-products"
-  description = "Top products by revenue"
+resource "aws_athena_named_query" "volume_by_source" {
+  name        = "volume-by-source"
+  description = "Daily post volume by source"
   workgroup   = aws_athena_workgroup.main.id
   database    = aws_glue_catalog_database.main.name
 
   query = <<-EOF
     SELECT
-      product_id,
-      COUNT(*) as orders,
-      SUM(total_amount) as revenue
-    FROM processed_orders
-    GROUP BY product_id
-    ORDER BY revenue DESC
-    LIMIT 10
+      date,
+      source,
+      total_posts,
+      unique_posts
+    FROM volume_by_source
+    WHERE date >= DATE_ADD('day', -7, CURRENT_DATE)
+    ORDER BY date DESC, total_posts DESC
+  EOF
+}
+
+resource "aws_athena_named_query" "trending_categories" {
+  name        = "trending-categories"
+  description = "Trending tech categories"
+  workgroup   = aws_athena_workgroup.main.id
+  database    = aws_glue_catalog_database.main.name
+
+  query = <<-EOF
+    SELECT
+      category,
+      SUM(mentions) as total_mentions,
+      COUNT(DISTINCT date) as days_active
+    FROM trending_categories
+    WHERE date >= DATE_ADD('day', -7, CURRENT_DATE)
+    GROUP BY category
+    ORDER BY total_mentions DESC
+    LIMIT 20
+  EOF
+}
+
+resource "aws_athena_named_query" "search_keyword" {
+  name        = "search-keyword"
+  description = "Search mentions of a specific keyword"
+  workgroup   = aws_athena_workgroup.main.id
+  database    = aws_glue_catalog_database.main.name
+
+  query = <<-EOF
+    -- Replace 'python' with your keyword
+    SELECT
+      date,
+      mentions,
+      sources_count
+    FROM trending_keywords
+    WHERE keyword = 'python'
+    ORDER BY date DESC
+    LIMIT 30
+  EOF
+}
+
+resource "aws_athena_named_query" "raw_bluesky_sample" {
+  name        = "raw-bluesky-sample"
+  description = "Sample raw Bluesky posts"
+  workgroup   = aws_athena_workgroup.main.id
+  database    = aws_glue_catalog_database.main.name
+
+  query = <<-EOF
+    SELECT
+      id,
+      content,
+      author,
+      collected_at,
+      keywords,
+      categories,
+      is_remapped
+    FROM raw_bluesky
+    LIMIT 100
   EOF
 }

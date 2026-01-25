@@ -39,9 +39,9 @@ output "glue_database" {
   value       = aws_glue_catalog_database.main.name
 }
 
-output "glue_job_transform" {
-  description = "Glue ETL job - Transform"
-  value       = aws_glue_job.transform_orders.name
+output "glue_jobs_transform" {
+  description = "Glue ETL jobs - Transform (one per source)"
+  value       = { for k, v in aws_glue_job.transform_social : k => v.name }
 }
 
 output "glue_job_aggregation" {
@@ -67,4 +67,9 @@ output "step_functions_arn" {
 output "dashboard_dns" {
   description = "Dashboard DNS name"
   value       = var.create_dns_zone ? "http://dashboard.${var.domain_name}" : null
+}
+
+output "sources" {
+  description = "Data sources being collected"
+  value       = ["bluesky", "nostr", "hackernews", "stackoverflow", "rss"]
 }

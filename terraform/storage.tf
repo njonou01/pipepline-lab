@@ -129,21 +129,21 @@ resource "aws_s3_bucket_public_access_block" "scripts" {
 }
 
 resource "aws_s3_object" "raw_folders" {
-  for_each = toset(["orders/", "customers/", "products/", "events/"])
+  for_each = toset(["bluesky/", "nostr/", "hackernews/", "stackoverflow/", "rss/"])
   bucket   = aws_s3_bucket.raw.id
   key      = each.value
   content  = ""
 }
 
 resource "aws_s3_object" "processed_folders" {
-  for_each = toset(["orders/", "customers/", "products/"])
+  for_each = toset(["bluesky/", "nostr/", "hackernews/", "stackoverflow/", "rss/"])
   bucket   = aws_s3_bucket.processed.id
   key      = each.value
   content  = ""
 }
 
 resource "aws_s3_object" "curated_folders" {
-  for_each = toset(["analytics/", "reports/"])
+  for_each = toset(["analytics/", "reports/", "trends/"])
   bucket   = aws_s3_bucket.curated.id
   key      = each.value
   content  = ""
@@ -151,35 +151,14 @@ resource "aws_s3_object" "curated_folders" {
 
 resource "aws_s3_object" "glue_script_transform" {
   bucket = aws_s3_bucket.scripts.id
-  key    = "glue/orders_transform.py"
-  source = "${path.module}/../scripts/glue/orders_transform.py"
-  etag   = filemd5("${path.module}/../scripts/glue/orders_transform.py")
+  key    = "glue/social_transform.py"
+  source = "${path.module}/../scripts/glue/social_transform.py"
+  etag   = filemd5("${path.module}/../scripts/glue/social_transform.py")
 }
 
 resource "aws_s3_object" "glue_script_aggregation" {
   bucket = aws_s3_bucket.scripts.id
-  key    = "glue/aggregation.py"
-  source = "${path.module}/../scripts/glue/aggregation.py"
-  etag   = filemd5("${path.module}/../scripts/glue/aggregation.py")
-}
-
-resource "aws_s3_object" "sample_orders" {
-  bucket = aws_s3_bucket.raw.id
-  key    = "orders/sample_orders.json"
-  source = "${path.module}/../data/sample/orders.json"
-  etag   = filemd5("${path.module}/../data/sample/orders.json")
-}
-
-resource "aws_s3_object" "sample_customers" {
-  bucket = aws_s3_bucket.raw.id
-  key    = "customers/sample_customers.json"
-  source = "${path.module}/../data/sample/customers.json"
-  etag   = filemd5("${path.module}/../data/sample/customers.json")
-}
-
-resource "aws_s3_object" "sample_products" {
-  bucket = aws_s3_bucket.raw.id
-  key    = "products/sample_products.json"
-  source = "${path.module}/../data/sample/products.json"
-  etag   = filemd5("${path.module}/../data/sample/products.json")
+  key    = "glue/social_aggregation.py"
+  source = "${path.module}/../scripts/glue/social_aggregation.py"
+  etag   = filemd5("${path.module}/../scripts/glue/social_aggregation.py")
 }
