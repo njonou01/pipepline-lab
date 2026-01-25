@@ -21,4 +21,4 @@ venv/
 .idea/
 .env/
 **/.pub
-**/.pem
+**/.pemsrc/collectors/config.py
