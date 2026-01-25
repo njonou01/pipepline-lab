@@ -1,5 +1,5 @@
 #!/bin/bash
-# Tech Pulse - Changer le niveau de log à chaud | Équipe: UCCNT
+# UCCNT - Changer le niveau de log à chaud | Équipe: UCCNT
 
 PID_FILE="$(dirname "$0")/.pids"
 

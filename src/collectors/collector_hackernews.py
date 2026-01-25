@@ -1,16 +1,21 @@
-# Tech Pulse - Hacker News Collector | Équipe: UCCNT
-
 import time
 import requests
 import logging
 import logger as _
 from producer import create_producer, send_message
-from config import TOPICS, POLL_INTERVAL_HN
+from config import TOPICS, POLL_INTERVAL_HN, KAFKA_BOOTSTRAP_SERVERS, CACHE_WARMUP_HOURS
 from utils import clean_html
+from redis_cache import RedisCache
 
 logger = logging.getLogger("hackernews")
 HN_API = "https://hacker-news.firebaseio.com/v0"
-HN_ENDPOINTS = {"topstories": "top", "newstories": "new", "beststories": "best", "askstories": "ask", "showstories": "show"}
+HN_ENDPOINTS = {
+    "topstories": "top",
+    "newstories": "new",
+    "beststories": "best",
+    "askstories": "ask",
+    "showstories": "show",
+}
 
 
 def get_stories(endpoint):
@@ -34,10 +39,13 @@ def get_story(story_id):
 def collect():
     producer = create_producer()
     topic = TOPICS["hackernews"]
-    seen_ids = set()
+    cache = RedisCache("hackernews")
 
     logger.info("=== Démarrage collector Hacker News (Batch) ===")
     logger.info(f"Endpoints: {len(HN_ENDPOINTS)} | Intervalle: {POLL_INTERVAL_HN}s")
+
+    hours = CACHE_WARMUP_HOURS.get("hackernews", 24)
+    cache.warmup_from_kafka(topic, KAFKA_BOOTSTRAP_SERVERS, hours)
 
     while True:
         try:
@@ -47,7 +55,7 @@ def collect():
                 new_count = 0
 
                 for story_id in story_ids:
-                    if story_id in seen_ids:
+                    if cache.is_seen(story_id):
                         continue
 
                     story = get_story(story_id)
@@ -62,10 +70,10 @@ def collect():
                             "comments": story.get("descendants", 0),
                             "timestamp": story.get("time"),
                             "story_type": story_type,
-                            "source": "hackernews"
+                            "source": "hackernews",
                         }
                         send_message(producer, topic, data, key=str(story_id))
-                        seen_ids.add(story_id)
+                        cache.add(story_id)
                         new_count += 1
 
                     time.sleep(0.2)
@@ -73,11 +81,7 @@ def collect():
                 logger.debug(f"[{story_type}] +{new_count} stories")
                 total_new += new_count
 
-            logger.info(f"[HackerNews] +{total_new} nouvelles | Cache: {len(seen_ids)}")
-
-            if len(seen_ids) > 10000:
-                seen_ids = set(list(seen_ids)[-5000:])
-                logger.debug("Cache nettoyé")
+            logger.info(f"[HackerNews] +{total_new} nouvelles | Cache: {cache.count()}")
 
             logger.debug(f"Prochain cycle dans {POLL_INTERVAL_HN}s")
             time.sleep(POLL_INTERVAL_HN)

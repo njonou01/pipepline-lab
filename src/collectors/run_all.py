@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# Tech Pulse - Lancer tous les collectors | Équipe: UCCNT
 
 import os
 import subprocess
@@ -11,8 +10,13 @@ import logger as _
 logger = logging.getLogger("runner")
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PID_FILE = os.path.join(SCRIPT_DIR, ".pids")
-COLLECTORS = ["collector_hackernews.py", "collector_stackoverflow.py", "collector_rss.py",
-              "collector_bluesky.py", "collector_nostr.py"]
+COLLECTORS = [
+    "collector_hackernews.py",
+    "collector_stackoverflow.py",
+    "collector_rss.py",
+    "collector_bluesky.py",
+    "collector_nostr.py",
+]
 processes = []
 
 
@@ -54,7 +58,9 @@ def main():
 
     logger.info("=== Démarrage de tous les collectors ===")
     for collector in COLLECTORS:
-        p = subprocess.Popen([sys.executable, os.path.join(SCRIPT_DIR, collector)], cwd=SCRIPT_DIR)
+        p = subprocess.Popen(
+            [sys.executable, os.path.join(SCRIPT_DIR, collector)], cwd=SCRIPT_DIR
+        )
         processes.append(p)
         logger.info(f"[PID {p.pid}] {collector}")
 

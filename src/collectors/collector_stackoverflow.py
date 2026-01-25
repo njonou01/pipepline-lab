@@ -1,12 +1,17 @@
-# Tech Pulse - Stack Overflow Collector | Équipe: UCCNT
-
 import time
 import requests
 import logging
 import logger as _
 from producer import create_producer, send_message
-from config import TOPICS, POLL_INTERVAL_SO, STACKOVERFLOW_TAGS
+from config import (
+    TOPICS,
+    POLL_INTERVAL_SO,
+    STACKOVERFLOW_TAGS,
+    KAFKA_BOOTSTRAP_SERVERS,
+    CACHE_WARMUP_HOURS,
+)
 from utils import clean_html
+from redis_cache import RedisCache
 
 logger = logging.getLogger("stackoverflow")
 SO_API = "https://api.stackexchange.com/2.3"
@@ -14,8 +19,15 @@ SO_API = "https://api.stackexchange.com/2.3"
 
 def get_questions(tag, page=1, page_size=100):
     try:
-        params = {"order": "desc", "sort": "activity", "tagged": tag, "site": "stackoverflow",
-                  "pagesize": page_size, "page": page, "filter": "withbody"}
+        params = {
+            "order": "desc",
+            "sort": "activity",
+            "tagged": tag,
+            "site": "stackoverflow",
+            "pagesize": page_size,
+            "page": page,
+            "filter": "withbody",
+        }
         resp = requests.get(f"{SO_API}/questions", params=params, timeout=10)
 
         if resp.status_code == 400:
@@ -39,10 +51,13 @@ def get_questions(tag, page=1, page_size=100):
 def collect():
     producer = create_producer()
     topic = TOPICS["stackoverflow"]
-    seen_ids = set()
+    cache = RedisCache("stackoverflow")
 
     logger.info("=== Démarrage collector Stack Overflow (Batch) ===")
     logger.info(f"Tags: {len(STACKOVERFLOW_TAGS)} | Intervalle: {POLL_INTERVAL_SO}s")
+
+    hours = CACHE_WARMUP_HOURS.get("stackoverflow", 24)
+    cache.warmup_from_kafka(topic, KAFKA_BOOTSTRAP_SERVERS, hours)
 
     while True:
         try:
@@ -59,7 +74,7 @@ def collect():
 
                 for q in questions:
                     q_id = q.get("question_id")
-                    if q_id in seen_ids:
+                    if cache.is_seen(q_id):
                         continue
 
                     data = {
@@ -74,24 +89,28 @@ def collect():
                         "answers": q.get("answer_count"),
                         "is_answered": q.get("is_answered"),
                         "timestamp": q.get("creation_date"),
-                        "source": "stackoverflow"
+                        "source": "stackoverflow",
                     }
                     send_message(producer, topic, data, key=str(q_id))
-                    seen_ids.add(q_id)
+                    cache.add(q_id)
                     new_count += 1
 
                 logger.debug(f"[{tag}] +{new_count} questions")
                 total_new += new_count
                 time.sleep(2)
 
-            logger.info(f"[StackOverflow] +{total_new} nouvelles | Quota: {quota_remaining} | Cache: {len(seen_ids)}")
+            logger.info(
+                f"[StackOverflow] +{total_new} nouvelles | Quota: {quota_remaining} | Cache: {cache.count()}"
+            )
 
-            if len(seen_ids) > 5000:
-                seen_ids = set(list(seen_ids)[-2500:])
-                logger.debug("Cache nettoyé")
-
-            logger.debug(f"Prochain cycle dans {POLL_INTERVAL_SO}s")
-            time.sleep(POLL_INTERVAL_SO)
+            if quota_remaining <= 2:
+                logger.warning(
+                    f"⚠️ Quota critique ({quota_remaining}), pause de 1 heure pour éviter le ban"
+                )
+                time.sleep(3600)  # 1 heure
+            else:
+                logger.debug(f"Prochain cycle dans {POLL_INTERVAL_SO}s")
+                time.sleep(POLL_INTERVAL_SO)
 
         except KeyboardInterrupt:
             logger.warning("Arrêt du collector...")
