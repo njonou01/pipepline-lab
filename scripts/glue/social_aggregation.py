@@ -38,37 +38,41 @@ trends_path = f"s3://{target_bucket}/trends/"
 print(f"Source bucket: {source_bucket}")
 print(f"Target analytics: {analytics_path}")
 
-# Charger toutes les sources
+from pyspark.sql.types import ArrayType, StringType
+
+common_cols = ["id", "source", "content_clean", "collected_at", "processed_at",
+              "keywords", "categories", "is_remapped", "has_keywords"]
+
 all_data = None
 for source in sources:
     source_path = f"s3://{source_bucket}/{source}/"
     try:
         df = spark.read.parquet(source_path)
-        print(f"[{source}] Lignes: {df.count()}")
+        row_count = df.count()
+        print(f"[{source}] Lignes: {row_count}")
+
+        if row_count == 0:
+            print(f"[{source}] Skip: pas de donnees")
+            continue
+
+        for col_name in common_cols:
+            if col_name not in df.columns:
+                if col_name in ["keywords", "categories"]:
+                    df = df.withColumn(col_name, array().cast(ArrayType(StringType())))
+                elif col_name in ["is_remapped", "has_keywords"]:
+                    df = df.withColumn(col_name, lit(False))
+                else:
+                    df = df.withColumn(col_name, lit(None))
+
+        df_ready = df.select([col(c) for c in common_cols])
+
         if all_data is None:
-            all_data = df
+            all_data = df_ready
         else:
-            # Union avec colonnes communes
-            # Créer un DataFrame avec les colonnes communes, en remplissant celles qui manquent
-            df_aligned = df
-            common_cols = ["id", "source", "content_clean", "collected_at", "processed_at",
-                          "keywords", "categories", "is_remapped", "has_keywords"]
-            
-            for col_name in common_cols:
-                if col_name not in df.columns:
-                    # Valeurs par défaut selon le type attendu
-                    if col_name in ["keywords", "categories"]:
-                        df_aligned = df_aligned.withColumn(col_name, array().cast(ArrayType(StringType())))  # Array vide typé
-                    elif col_name in ["is_remapped", "has_keywords"]:
-                        df_aligned = df_aligned.withColumn(col_name, lit(False))
-                    else:
-                        df_aligned = df_aligned.withColumn(col_name, lit(None))
-            
-            # Sélectionner uniquement les colonnes communes dans le bon ordre
-            df_ready = df_aligned.select([col(c) for c in common_cols])
-            
-            # Union avec le reste des données
             all_data = all_data.union(df_ready)
+
+        print(f"[{source}] OK - Total cumule: {all_data.count()}")
+
     except Exception as e:
         print(f"[{source}] Skip: {str(e)}")
         continue
@@ -80,9 +84,6 @@ if all_data is None or all_data.count() == 0:
 
 print(f"Total: {all_data.count()} enregistrements")
 
-# =============================================================================
-# 1. VOLUME PAR SOURCE ET PAR JOUR
-# =============================================================================
 volume_by_source = all_data \
     .withColumn("date", to_date(col("collected_at"))) \
     .groupBy("date", "source") \
@@ -101,9 +102,6 @@ volume_by_source \
     .partitionBy("source") \
     .parquet(f"{analytics_path}volume_by_source/")
 
-# =============================================================================
-# 2. TRENDING KEYWORDS (top keywords par jour)
-# =============================================================================
 keywords_exploded = all_data \
     .withColumn("date", to_date(col("collected_at"))) \
     .withColumn("keyword", explode(col("keywords"))) \
@@ -125,9 +123,6 @@ trending_keywords \
     .mode("overwrite") \
     .parquet(f"{trends_path}keywords/")
 
-# =============================================================================
-# 3. TRENDING CATEGORIES
-# =============================================================================
 categories_exploded = all_data \
     .withColumn("date", to_date(col("collected_at"))) \
     .withColumn("category", explode(col("categories")))
@@ -148,9 +143,6 @@ trending_categories \
     .mode("overwrite") \
     .parquet(f"{trends_path}categories/")
 
-# =============================================================================
-# 4. ACTIVITE PAR HEURE (pour patterns temporels)
-# =============================================================================
 hourly_activity = all_data \
     .withColumn("hour", hour(col("collected_at"))) \
     .withColumn("day_of_week", dayofweek(col("collected_at"))) \
@@ -166,9 +158,6 @@ hourly_activity \
     .mode("overwrite") \
     .parquet(f"{analytics_path}hourly_activity/")
 
-# =============================================================================
-# 5. STATISTIQUES REMAPPING
-# =============================================================================
 remapping_stats = all_data \
     .withColumn("date", to_date(col("collected_at"))) \
     .groupBy("date", "source") \
@@ -188,9 +177,6 @@ remapping_stats \
     .mode("overwrite") \
     .parquet(f"{analytics_path}remapping_stats/")
 
-# =============================================================================
-# 6. RESUME GLOBAL (pour dashboard)
-# =============================================================================
 global_summary = all_data.agg(
     count("id").alias("total_posts"),
     countDistinct("source").alias("active_sources"),
@@ -205,7 +191,6 @@ global_summary \
     .mode("overwrite") \
     .parquet(f"{reports_path}global_summary/")
 
-# Résumé par source
 source_summary = all_data \
     .groupBy("source") \
     .agg(
