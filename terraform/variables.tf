@@ -2,7 +2,7 @@
 variable "project_name" {
   description = "Nom du projet"
   type        = string
-  default     = "uccnct"
+  default     = "uccnt"
 }
 
 variable "environment" {
@@ -30,13 +30,19 @@ variable "project_tags" {
 variable "ami_id" {
   description = "AMI ID pour l'instance EC2  Ubuntu"
   type        = string
-  default     = "ami-0c7217cdde317cfec" # Ubuntu 22.04 LTS us-east-1
+  default     = "ami-0c7217cdde317cfec" # Ubuntu 22.04 LTS us-east-1 x86
+}
+
+variable "ami_id_arm" {
+  description = "AMI ID pour instances EC2 ARM64"
+  type        = string
+  default     = "ami-0a0d8589b597f6eac" # Ubuntu 22.04 LTS us-east-1 ARM64
 }
 
 variable "streamlit_instance_type" {
   description = "l'instance EC2 pour streamlit"
   type        = string
-  default     = "t2.small"
+  default     = "t4g.micro"
 }
 
 variable "public_key_path" {
@@ -46,19 +52,32 @@ variable "public_key_path" {
 }
 
 variable "allowed_ssh_cidr" {
-  description = "CIDR blocks allowed for SSH"
+  description = "CIDR block pour les accès ssh"
   type        = list(string)
   default     = ["0.0.0.0/0"]
 }
 
-variable "domain_name" {
-  description = "Domain name for Route 53"
-  type        = string
-  default     = ""
-}
-
 variable "create_dns_zone" {
-  description = "Create Route 53 DNS zone"
+  description = "Creation de zone route 53 ?"
   type        = bool
   default     = false
 }
+
+variable "domain_name" {
+  description = "Nom de domaine"
+  type        = string
+  default     = "uccnct.com"
+}
+
+variable "alert_email" {
+  description = "Email pour les alertes SNS"
+  type        = string
+  default     = "admin@example.com"
+}
+
+variable "enable_ses" {
+  description = "Activer SES pour les emails"
+  type        = bool
+  default     = false
+}
+

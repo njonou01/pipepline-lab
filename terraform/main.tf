@@ -34,13 +34,8 @@ provider "aws" {
   }
 }
 
-resource "random_string" "suffix" {
-  length  = 8
-  special = false
-  upper   = false
-}
-
 locals {
   name_prefix   = "${var.project_name}-${var.environment}"
-  bucket_prefix = "${var.project_name}-${random_string.suffix.result}"
+  bucket_suffix = "ef98cc0f" # Hash fixe pour nouveau compte AWS
+  bucket_prefix = "${var.project_name}-${local.bucket_suffix}"
 }

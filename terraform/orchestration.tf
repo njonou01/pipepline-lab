@@ -46,8 +46,8 @@ resource "aws_sfn_state_machine" "etl_pipeline" {
       }
 
       UpdateCatalog = {
-        Type     = "Parallel"
-        Comment  = "Update both crawlers"
+        Type    = "Parallel"
+        Comment = "Update both crawlers"
         Branches = [
           {
             StartAt = "CrawlProcessed"

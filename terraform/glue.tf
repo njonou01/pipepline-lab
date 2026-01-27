@@ -242,6 +242,398 @@ resource "aws_glue_catalog_table" "curated_volume_by_source" {
   }
 }
 
+# Volume par semaine
+resource "aws_glue_catalog_table" "curated_volume_by_week" {
+  name          = "volume_by_week"
+  database_name = aws_glue_catalog_database.main.name
+  table_type    = "EXTERNAL_TABLE"
+
+  parameters = {
+    classification = "parquet"
+  }
+
+  storage_descriptor {
+    location      = "s3://${aws_s3_bucket.curated.id}/analytics/volume_by_week/"
+    input_format  = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat"
+    output_format = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"
+
+    ser_de_info {
+      serialization_library = "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"
+    }
+
+    columns {
+      name = "year_week"
+      type = "string"
+    }
+    columns {
+      name = "source"
+      type = "string"
+    }
+    columns {
+      name = "total_posts"
+      type = "bigint"
+    }
+    columns {
+      name = "unique_posts"
+      type = "bigint"
+    }
+    columns {
+      name = "week_start"
+      type = "timestamp"
+    }
+    columns {
+      name = "week_end"
+      type = "timestamp"
+    }
+    columns {
+      name = "aggregated_at"
+      type = "timestamp"
+    }
+  }
+}
+
+# Volume par mois
+resource "aws_glue_catalog_table" "curated_volume_by_month" {
+  name          = "volume_by_month"
+  database_name = aws_glue_catalog_database.main.name
+  table_type    = "EXTERNAL_TABLE"
+
+  parameters = {
+    classification = "parquet"
+  }
+
+  storage_descriptor {
+    location      = "s3://${aws_s3_bucket.curated.id}/analytics/volume_by_month/"
+    input_format  = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat"
+    output_format = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"
+
+    ser_de_info {
+      serialization_library = "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"
+    }
+
+    columns {
+      name = "year_month"
+      type = "string"
+    }
+    columns {
+      name = "source"
+      type = "string"
+    }
+    columns {
+      name = "total_posts"
+      type = "bigint"
+    }
+    columns {
+      name = "unique_posts"
+      type = "bigint"
+    }
+    columns {
+      name = "month_start"
+      type = "timestamp"
+    }
+    columns {
+      name = "month_end"
+      type = "timestamp"
+    }
+    columns {
+      name = "aggregated_at"
+      type = "timestamp"
+    }
+  }
+}
+
+# Taux de croissance
+resource "aws_glue_catalog_table" "curated_growth_rate" {
+  name          = "growth_rate"
+  database_name = aws_glue_catalog_database.main.name
+  table_type    = "EXTERNAL_TABLE"
+
+  parameters = {
+    classification = "parquet"
+  }
+
+  storage_descriptor {
+    location      = "s3://${aws_s3_bucket.curated.id}/analytics/growth_rate/"
+    input_format  = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat"
+    output_format = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"
+
+    ser_de_info {
+      serialization_library = "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"
+    }
+
+    columns {
+      name = "date"
+      type = "date"
+    }
+    columns {
+      name = "source"
+      type = "string"
+    }
+    columns {
+      name = "total_posts"
+      type = "bigint"
+    }
+    columns {
+      name = "prev_day_posts"
+      type = "bigint"
+    }
+    columns {
+      name = "growth_pct"
+      type = "double"
+    }
+    columns {
+      name = "growth_abs"
+      type = "bigint"
+    }
+    columns {
+      name = "aggregated_at"
+      type = "timestamp"
+    }
+  }
+}
+
+# Stats contenu
+resource "aws_glue_catalog_table" "curated_content_stats" {
+  name          = "content_stats"
+  database_name = aws_glue_catalog_database.main.name
+  table_type    = "EXTERNAL_TABLE"
+
+  parameters = {
+    classification = "parquet"
+  }
+
+  storage_descriptor {
+    location      = "s3://${aws_s3_bucket.curated.id}/analytics/content_stats/"
+    input_format  = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat"
+    output_format = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"
+
+    ser_de_info {
+      serialization_library = "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"
+    }
+
+    columns {
+      name = "date"
+      type = "date"
+    }
+    columns {
+      name = "source"
+      type = "string"
+    }
+    columns {
+      name = "total_posts"
+      type = "bigint"
+    }
+    columns {
+      name = "avg_length"
+      type = "double"
+    }
+    columns {
+      name = "min_length"
+      type = "int"
+    }
+    columns {
+      name = "max_length"
+      type = "int"
+    }
+    columns {
+      name = "long_posts"
+      type = "bigint"
+    }
+    columns {
+      name = "short_posts"
+      type = "bigint"
+    }
+    columns {
+      name = "long_posts_pct"
+      type = "double"
+    }
+    columns {
+      name = "aggregated_at"
+      type = "timestamp"
+    }
+  }
+}
+
+# Keywords cross-source
+resource "aws_glue_catalog_table" "curated_cross_source_keywords" {
+  name          = "cross_source_keywords"
+  database_name = aws_glue_catalog_database.main.name
+  table_type    = "EXTERNAL_TABLE"
+
+  parameters = {
+    classification = "parquet"
+  }
+
+  storage_descriptor {
+    location      = "s3://${aws_s3_bucket.curated.id}/trends/cross_source_keywords/"
+    input_format  = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat"
+    output_format = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"
+
+    ser_de_info {
+      serialization_library = "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"
+    }
+
+    columns {
+      name = "keyword"
+      type = "string"
+    }
+    columns {
+      name = "total_mentions"
+      type = "bigint"
+    }
+    columns {
+      name = "sources_count"
+      type = "bigint"
+    }
+    columns {
+      name = "sources_list"
+      type = "array<string>"
+    }
+    columns {
+      name = "is_viral"
+      type = "boolean"
+    }
+    columns {
+      name = "aggregated_at"
+      type = "timestamp"
+    }
+  }
+}
+
+# Activite horaire
+resource "aws_glue_catalog_table" "curated_hourly_activity" {
+  name          = "hourly_activity"
+  database_name = aws_glue_catalog_database.main.name
+  table_type    = "EXTERNAL_TABLE"
+
+  parameters = {
+    classification = "parquet"
+  }
+
+  storage_descriptor {
+    location      = "s3://${aws_s3_bucket.curated.id}/analytics/hourly_activity/"
+    input_format  = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat"
+    output_format = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"
+
+    ser_de_info {
+      serialization_library = "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"
+    }
+
+    columns {
+      name = "source"
+      type = "string"
+    }
+    columns {
+      name = "hour"
+      type = "int"
+    }
+    columns {
+      name = "day_of_week"
+      type = "int"
+    }
+    columns {
+      name = "post_count"
+      type = "bigint"
+    }
+    columns {
+      name = "aggregated_at"
+      type = "timestamp"
+    }
+  }
+}
+
+# Global summary
+resource "aws_glue_catalog_table" "curated_global_summary" {
+  name          = "global_summary"
+  database_name = aws_glue_catalog_database.main.name
+  table_type    = "EXTERNAL_TABLE"
+
+  parameters = {
+    classification = "parquet"
+  }
+
+  storage_descriptor {
+    location      = "s3://${aws_s3_bucket.curated.id}/reports/global_summary/"
+    input_format  = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat"
+    output_format = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"
+
+    ser_de_info {
+      serialization_library = "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"
+    }
+
+    columns {
+      name = "total_posts"
+      type = "bigint"
+    }
+    columns {
+      name = "active_sources"
+      type = "bigint"
+    }
+    columns {
+      name = "first_post"
+      type = "timestamp"
+    }
+    columns {
+      name = "last_post"
+      type = "timestamp"
+    }
+    columns {
+      name = "total_remapped"
+      type = "bigint"
+    }
+    columns {
+      name = "total_with_keywords"
+      type = "bigint"
+    }
+    columns {
+      name = "aggregated_at"
+      type = "timestamp"
+    }
+  }
+}
+
+# Source summary
+resource "aws_glue_catalog_table" "curated_source_summary" {
+  name          = "source_summary"
+  database_name = aws_glue_catalog_database.main.name
+  table_type    = "EXTERNAL_TABLE"
+
+  parameters = {
+    classification = "parquet"
+  }
+
+  storage_descriptor {
+    location      = "s3://${aws_s3_bucket.curated.id}/reports/source_summary/"
+    input_format  = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat"
+    output_format = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"
+
+    ser_de_info {
+      serialization_library = "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"
+    }
+
+    columns {
+      name = "source"
+      type = "string"
+    }
+    columns {
+      name = "total_posts"
+      type = "bigint"
+    }
+    columns {
+      name = "first_post"
+      type = "timestamp"
+    }
+    columns {
+      name = "last_post"
+      type = "timestamp"
+    }
+    columns {
+      name = "aggregated_at"
+      type = "timestamp"
+    }
+  }
+}
+
 # Crawler pour découvrir les schémas
 resource "aws_glue_crawler" "processed" {
   name          = "${local.name_prefix}-processed-crawler"

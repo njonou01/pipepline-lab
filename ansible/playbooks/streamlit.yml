@@ -1,18 +1,196 @@
 ---
-- name: Configure Streamlit Dashboard
+- name: Install and configure Streamlit Dashboard
   hosts: streamlit
   become: yes
-
   vars:
-    app_user: streamlit
-    app_dir: /opt/streamlit
-    python_packages:
-      - streamlit
-      - pandas
-      - boto3
-      - pyathena
-      - plotly
-      - awswrangler
+    app_user: "streamlit"
+    app_dir: "/opt/streamlit"
 
-  roles:
-    - streamlit
+  tasks:
+    # ========================================
+    # PREREQUISITES
+    # ========================================
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install required packages
+      apt:
+        name:
+          - python3
+          - python3-pip
+          - python3-venv
+          - git
+          - nginx
+          - acl
+        state: present
+
+    # ========================================
+    # APPLICATION USER
+    # ========================================
+
+    - name: Create Streamlit user
+      user:
+        name: "{{ app_user }}"
+        system: yes
+        shell: /bin/bash
+        home: "{{ app_dir }}"
+
+    # ========================================
+    # APPLICATION DIRECTORY
+    # ========================================
+
+    - name: Create application directory
+      file:
+        path: "{{ app_dir }}"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: "0755"
+
+    - name: Create Python virtual environment
+      command: python3 -m venv {{ app_dir }}/venv
+      args:
+        creates: "{{ app_dir }}/venv"
+      become_user: "{{ app_user }}"
+
+    # ========================================
+    # PYTHON PACKAGES
+    # ========================================
+
+    - name: Install Python packages
+      pip:
+        name:
+          - streamlit
+          - pandas
+          - boto3
+          - pyathena
+          - plotly
+          - awswrangler
+          - pyyaml
+        virtualenv: "{{ app_dir }}/venv"
+      become_user: "{{ app_user }}"
+
+    # ========================================
+    # STREAMLIT APP
+    # ========================================
+
+    - name: Copy Streamlit application
+      copy:
+        src: "{{ playbook_dir }}/../../src/dashboard/"
+        dest: "{{ app_dir }}/app/"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: "0755"
+
+    - name: Create Streamlit config directory
+      file:
+        path: "{{ app_dir }}/.streamlit"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: "0755"
+
+    - name: Configure Streamlit
+      copy:
+        dest: "{{ app_dir }}/.streamlit/config.toml"
+        content: |
+          [server]
+          port = 8501
+          address = "0.0.0.0"
+          headless = true
+
+          [theme]
+          primaryColor = "#FF4B4B"
+          backgroundColor = "#FFFFFF"
+          secondaryBackgroundColor = "#F0F2F6"
+          textColor = "#262730"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: "0644"
+
+    # ========================================
+    # SYSTEMD SERVICE
+    # ========================================
+
+    - name: Create Streamlit systemd service
+      copy:
+        dest: /etc/systemd/system/streamlit.service
+        content: |
+          [Unit]
+          Description=Streamlit Dashboard
+          After=network.target
+
+          [Service]
+          Type=simple
+          User={{ app_user }}
+          WorkingDirectory={{ app_dir }}/app
+          Environment="PATH={{ app_dir }}/venv/bin"
+          ExecStart={{ app_dir }}/venv/bin/streamlit run app.py
+          Restart=on-failure
+          RestartSec=10
+
+          [Install]
+          WantedBy=multi-user.target
+        mode: "0644"
+
+    # ========================================
+    # NGINX REVERSE PROXY
+    # ========================================
+
+    - name: Configure Nginx for Streamlit
+      copy:
+        dest: /etc/nginx/sites-available/streamlit
+        content: |
+          server {
+              listen 80;
+              server_name _;
+              
+              location / {
+                  proxy_pass http://localhost:8501;
+                  proxy_http_version 1.1;
+                  proxy_set_header Upgrade $http_upgrade;
+                  proxy_set_header Connection "upgrade";
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+              }
+          }
+        mode: "0644"
+      notify: restart nginx
+
+    - name: Enable Streamlit Nginx site
+      file:
+        src: /etc/nginx/sites-available/streamlit
+        dest: /etc/nginx/sites-enabled/streamlit
+        state: link
+      notify: restart nginx
+
+    - name: Remove default Nginx site
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+      notify: restart nginx
+
+    # ========================================
+    # START SERVICES
+    # ========================================
+
+    - name: Reload systemd daemon
+      systemd:
+        daemon_reload: yes
+
+    - name: Enable and start Streamlit
+      systemd:
+        name: streamlit
+        enabled: yes
+        state: started
+
+  handlers:
+    - name: restart nginx
+      systemd:
+        name: nginx
+        state: restarted

@@ -13,3 +13,7 @@ allowed_ssh_cidr = ["0.0.0.0/0"]
 # DNS (optional)
 create_dns_zone = false
 domain_name     = ""
+
+# Notifications
+alert_email = "votre.email@example.com" # ⚠️ MODIFIEZ ICI
+enable_ses  = false
