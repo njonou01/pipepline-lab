@@ -6,18 +6,18 @@ from datetime import datetime
 from kafka import KafkaConsumer
 
 # Configuration
-KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP", "57.130.30.86:9092")
-S3_BUCKET = os.getenv("S3_BUCKET", "uccnt-ox85m3dx-raw")
+KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP", "localhost:9092")
+S3_BUCKET = os.getenv("S3_BUCKET", "uccnt-ef98cc0f-raw")
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
-BATCH_SIZE = int(os.getenv("BATCH_SIZE", "1000"))
-BATCH_TIMEOUT_SEC = int(os.getenv("BATCH_TIMEOUT_SEC", "300"))  # 5 min
+BATCH_SIZE = int(os.getenv("BATCH_SIZE", "2000"))
+BATCH_TIMEOUT_SEC = int(os.getenv("BATCH_TIMEOUT_SEC", "300"))
 
 TOPICS = [
-    "raw-bluesky",
-    "raw-nostr",
-    "raw-hackernews",
-    "raw-stackoverflow",
-    "raw-rss"
+    "bluesky",
+    "nostr",
+    "hackernews",
+    "stackoverflow",
+    "rss"
 ]
 
 logging.basicConfig(
@@ -47,7 +47,7 @@ class KafkaToS3:
     def get_s3_key(self, topic):
         """Générer le chemin S3 partitionné par date"""
         now = datetime.utcnow()
-        source = topic.replace("raw-", "")
+        source = topic
         return f"{source}/year={now.year}/month={now.month:02d}/day={now.day:02d}/hour={now.hour:02d}/{now.strftime('%Y%m%d_%H%M%S')}_{source}.json"
 
     def flush_buffer(self, topic):
@@ -70,7 +70,7 @@ class KafkaToS3:
             )
             count = len(data)
             self.buffers[topic] = []
-            logger.info(f"[{topic}] → S3: {count} records → s3://{S3_BUCKET}/{key}")
+            logger.info(f"[{topic}] -> S3: {count} records -> s3://{S3_BUCKET}/{key}")
             return count
         except Exception as e:
             logger.error(f"Erreur S3 upload: {e}")
@@ -85,7 +85,7 @@ class KafkaToS3:
 
     def run(self):
         """Boucle principale"""
-        logger.info("=== Démarrage Consumer Kafka → S3 ===")
+        logger.info("=== Démarrage Consumer Kafka -> S3 ===")
         total_processed = 0
 
         try:
