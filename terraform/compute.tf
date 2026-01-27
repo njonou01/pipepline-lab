@@ -44,7 +44,7 @@ resource "aws_instance" "streamlit" {
 # EC2 #2: Kafka + Redis (ARM64)
 resource "aws_instance" "kafka" {
   ami           = data.aws_ami.ubuntu_arm64.id
-  instance_type = "t4g.small" # 2 vCPU, 2 GB RAM, ARM64
+  instance_type = "t4g.medium" # 2 vCPU, 4 GB RAM, ARM64
   key_name      = aws_key_pair.main.key_name
 
   iam_instance_profile   = local.lab_instance_profile

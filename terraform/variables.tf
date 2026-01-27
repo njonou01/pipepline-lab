@@ -72,7 +72,7 @@ variable "domain_name" {
 variable "alert_email" {
   description = "Email pour les alertes SNS"
   type        = string
-  default     = "admin@example.com"
+  default     = "njonougaby45@gmail.com"
 }
 
 variable "enable_ses" {

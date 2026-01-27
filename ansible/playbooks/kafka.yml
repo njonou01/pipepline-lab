@@ -109,7 +109,7 @@
 
           # Listeners
           listeners=PLAINTEXT://0.0.0.0:9092,CONTROLLER://localhost:9093
-          advertised.listeners=PLAINTEXT://{{ ansible_default_ipv4.address }}:9092
+          advertised.listeners=PLAINTEXT://{{ kafka_broker }}
           controller.listener.names=CONTROLLER
           listener.security.protocol.map=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
 

@@ -70,6 +70,7 @@
           - plotly
           - awswrangler
           - pyyaml
+          - s3fs
         virtualenv: "{{ app_dir }}/venv"
       become_user: "{{ app_user }}"
 

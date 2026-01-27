@@ -89,6 +89,22 @@ resource "aws_security_group" "kafka" {
     cidr_blocks = ["0.0.0.0/0"] # Accessible depuis Streamlit
   }
 
+  ingress {
+    description = "Kafka-UI"
+    from_port   = 8090
+    to_port     = 8090
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "RedisInsight"
+    from_port   = 5540
+    to_port     = 5540
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0

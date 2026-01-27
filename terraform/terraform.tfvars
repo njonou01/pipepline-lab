@@ -15,5 +15,5 @@ create_dns_zone = false
 domain_name     = ""
 
 # Notifications
-alert_email = "votre.email@example.com" # ⚠️ MODIFIEZ ICI
+alert_email = "njonougaby45@gmail.com"
 enable_ses  = false

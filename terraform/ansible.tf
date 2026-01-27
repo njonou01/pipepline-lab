@@ -68,7 +68,7 @@ resource "null_resource" "ansible_kafka" {
   }
 
   provisioner "local-exec" {
-    command     = "sleep 90 && ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory/hosts.ini playbooks/kafka.yml"
+    command     = "sleep 90 && ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory/hosts.ini playbooks/docker.yml --extra-vars 'instance_public_ip=${aws_eip.kafka.public_ip}'"
     working_dir = "${path.module}/../ansible"
   }
 
