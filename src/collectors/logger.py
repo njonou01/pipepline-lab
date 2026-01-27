@@ -36,6 +36,7 @@ def set_info(signum, frame):
 
 # Réduire le bruit des logs Kafka et WebSocket
 logging.getLogger("kafka").setLevel(logging.WARNING)
+logging.getLogger("kafka.consumer.fetcher").setLevel(logging.CRITICAL)  # Éviter "Fetch cancelled" pendant warmup
 logging.getLogger("websocket").setLevel(logging.WARNING)
 
 # Signaux pour changement à chaud (Unix)

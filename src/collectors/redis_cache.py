@@ -98,6 +98,15 @@ class RedisCache:
             bootstrap_servers: Serveurs Kafka
             hours_back: Nombre d'heures en arrière (défaut: 24h)
         """
+        # Vérifier si le warmup est activé pour cette source
+        try:
+            from config import CACHE_WARMUP_ENABLED
+            if not CACHE_WARMUP_ENABLED.get(self.source_name, True):
+                logger.info(f"[{self.source_name}] Warmup désactivé dans la configuration")
+                return
+        except ImportError:
+            pass  # Si la config n'existe pas, continuer normalement
+        
         try:
             from kafka import KafkaConsumer, TopicPartition
             from datetime import datetime, timedelta

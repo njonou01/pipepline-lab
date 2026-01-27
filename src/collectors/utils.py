@@ -37,7 +37,10 @@ def remap_content(text):
     replacements = {}  # {mot_original: mot_tech}
 
     for kw in ALL_KEYWORDS_SET:
-        pattern = rf"(?<![a-zA-Z]){re.escape(kw)}(?![a-zA-Z])"
+        # Utiliser \b pour les frontières de mots (plus standard et robuste)
+        # Permet de matcher "python," "python." "(python)" etc.
+        # Tout en évitant "scared" qui contient "c"
+        pattern = rf"\b{re.escape(kw)}\b"
         if re.search(pattern, text_lower, re.IGNORECASE):
             original_keywords.append(kw)
             mapped_keywords.append(kw)

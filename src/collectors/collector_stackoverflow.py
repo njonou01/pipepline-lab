@@ -6,7 +6,11 @@ from producer import create_producer, send_message
 from config import (
     TOPICS,
     POLL_INTERVAL_SO,
-    STACKOVERFLOW_TAGS,
+    STACKOVERFLOW_TAGS_HIGH,
+    STACKOVERFLOW_TAGS_MEDIUM,
+    STACKOVERFLOW_TAGS_LOW,
+    SO_BATCH_SIZE,
+    STACKOVERFLOW_KEY,
     KAFKA_BOOTSTRAP_SERVERS,
     CACHE_WARMUP_HOURS,
 )
@@ -16,22 +20,65 @@ from redis_cache import RedisCache
 logger = logging.getLogger("stackoverflow")
 SO_API = "https://api.stackexchange.com/2.3"
 
+# État de rotation (persiste entre les cycles)
+rotation_state = {"cycle": 0, "medium_index": 0, "low_index": 0}
+
+
+def get_current_tags():
+    """
+    Sélectionne les tags à scanner pour ce cycle avec rotation intelligente.
+    
+    Stratégie optimisée pour 100 tags/cycle:
+    - HIGH: Toujours inclus (26 tags)
+    - MEDIUM: Rotation par batch de 40 tags
+    - LOW: Rotation par batch de 34 tags
+    
+    Total: ~100 tags/cycle au lieu de 300+
+    """
+    tags = list(STACKOVERFLOW_TAGS_HIGH)  # Toujours scanner les high priority
+    
+    # Rotation MEDIUM: change tous les 2 cycles
+    medium_batch_size = 40
+    if rotation_state["cycle"] % 2 == 0:
+        start_idx = rotation_state["medium_index"]
+        medium_tags = STACKOVERFLOW_TAGS_MEDIUM[start_idx:start_idx + medium_batch_size]
+        tags.extend(medium_tags)
+        rotation_state["medium_index"] = (start_idx + medium_batch_size) % len(STACKOVERFLOW_TAGS_MEDIUM)
+    
+    # Rotation LOW: change tous les 5 cycles
+    low_batch_size = 34
+    if rotation_state["cycle"] % 5 == 0:
+        start_idx = rotation_state["low_index"]
+        low_tags = STACKOVERFLOW_TAGS_LOW[start_idx:start_idx + low_batch_size]
+        tags.extend(low_tags)
+        rotation_state["low_index"] = (start_idx + low_batch_size) % len(STACKOVERFLOW_TAGS_LOW)
+    
+    rotation_state["cycle"] += 1
+    
+    # Limiter à SO_BATCH_SIZE si dépassement
+    return tags[:SO_BATCH_SIZE]
+
 
 def get_questions(tag, page=1, page_size=100):
     try:
         params = {
             "order": "desc",
-            "sort": "activity",
+            "sort": "creation",
             "tagged": tag,
             "site": "stackoverflow",
             "pagesize": page_size,
             "page": page,
             "filter": "withbody",
+            "key": STACKOVERFLOW_KEY,
         }
         resp = requests.get(f"{SO_API}/questions", params=params, timeout=10)
 
         if resp.status_code == 400:
-            logger.warning(f"Rate limit atteint pour tag: {tag}")
+            logger.warning(f"Rate limit ou erreur API pour tag: {tag}")
+            return [], 0, False
+        
+        if resp.status_code == 429:
+            logger.error(f"QUOTA ÉPUISÉ - Backoff requis")
             return [], 0, False
 
         if not resp.text:
@@ -39,10 +86,17 @@ def get_questions(tag, page=1, page_size=100):
 
         data = resp.json()
         quota = data.get("quota_remaining", 0)
-        if quota < 20:
+        
+        # Warning si quota devient critique
+        if quota < 100:
             logger.warning(f"Quota critique: {quota} requêtes restantes")
+        elif quota < 500:
+            logger.info(f"Quota: {quota} requêtes restantes")
 
         return data.get("items", []), quota, data.get("has_more", False)
+    except requests.exceptions.Timeout:
+        logger.error(f"Timeout pour tag {tag}")
+        return [], 0, False
     except Exception as e:
         logger.error(f"Erreur récupération tag {tag}: {e}")
         return [], 0, False
@@ -53,20 +107,27 @@ def collect():
     topic = TOPICS["stackoverflow"]
     cache = RedisCache("stackoverflow")
 
-    logger.info("=== Démarrage collector Stack Overflow (Batch) ===")
-    logger.info(f"Tags: {len(STACKOVERFLOW_TAGS)} | Intervalle: {POLL_INTERVAL_SO}s")
+    logger.info("=== Démarrage collector Stack Overflow (Rotation Intelligente) ===")
+    logger.info(f"Tags HIGH: {len(STACKOVERFLOW_TAGS_HIGH)} | MEDIUM: {len(STACKOVERFLOW_TAGS_MEDIUM)} | LOW: {len(STACKOVERFLOW_TAGS_LOW)}")
+    logger.info(f"Batch size: {SO_BATCH_SIZE} tags/cycle | Intervalle: {POLL_INTERVAL_SO}s")
 
     hours = CACHE_WARMUP_HOURS.get("stackoverflow", 24)
     cache.warmup_from_kafka(topic, KAFKA_BOOTSTRAP_SERVERS, hours)
+    
+    logger.info(f"Début de la collecte Stack Overflow")
 
     while True:
         try:
+            cycle_start = time.time()
+            current_tags = get_current_tags()
             total_new = 0
-            quota_remaining = 300
+            quota_remaining = 10000
+            
+            logger.info(f"Cycle #{rotation_state['cycle']} - Scanning {len(current_tags)} tags...")
 
-            for tag in STACKOVERFLOW_TAGS:
+            for idx, tag in enumerate(current_tags, 1):
                 if quota_remaining < 10:
-                    logger.warning("Quota trop bas, pause jusqu'au prochain cycle")
+                    logger.warning("Quota trop bas, fin du cycle anticipée")
                     break
 
                 questions, quota_remaining, _ = get_questions(tag)
@@ -95,17 +156,23 @@ def collect():
                     cache.add(q_id)
                     new_count += 1
 
-                logger.debug(f"[{tag}] +{new_count} questions")
+                if new_count > 0:
+                    logger.debug(f"  [{idx}/{len(current_tags)}] {tag}: +{new_count} questions")
+                
                 total_new += new_count
-                time.sleep(2)
+                time.sleep(2)  # Rate limiting gentil
 
+            cycle_duration = time.time() - cycle_start
             logger.info(
-                f"[StackOverflow] +{total_new} nouvelles | Quota: {quota_remaining} | Cache: {cache.count()}"
+                f"[StackOverflow] +{total_new} nouvelles questions | "
+                f"Quota: {quota_remaining} | Cache: {cache.count()} | "
+                f"Durée: {cycle_duration:.1f}s"
             )
 
+            # Gestion du quota épuisé
             if quota_remaining <= 2:
-                logger.warning(
-                    f"⚠️ Quota critique ({quota_remaining}), pause de 1 heure pour éviter le ban"
+                logger.error(
+                    f"QUOTA CRITIQUE ({quota_remaining}), pause de 1 heure pour éviter le ban"
                 )
                 time.sleep(3600)  # 1 heure
             else:
@@ -116,7 +183,7 @@ def collect():
             logger.warning("Arrêt du collector...")
             break
         except Exception as e:
-            logger.error(f"Erreur dans la boucle: {e}")
+            logger.error(f"Erreur dans la boucle principale: {e}", exc_info=True)
             time.sleep(60)
 
     producer.close()

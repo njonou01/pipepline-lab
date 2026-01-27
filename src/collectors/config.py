@@ -1,6 +1,8 @@
+import os
+
 # UCCNT - Configuration | Équipe: UCCNT
 
-KAFKA_BOOTSTRAP_SERVERS = "57.130.30.86:9092"
+KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP", "localhost:9092")
 
 TOPICS = {
     "bluesky": "raw-bluesky",
@@ -13,7 +15,7 @@ TOPICS = {
 BLUESKY_HANDLE = "njonou45.bsky.social"
 BLUESKY_PASSWORD = "r24a-v3tj-oubv-race"
 
-REDIS_HOST = "57.130.30.86"
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = 6379
 REDIS_PASSWORD = "mon_super_password"
 REDIS_DB = 0
@@ -21,94 +23,153 @@ CACHE_TTL = 604800  # 1 semaine (7 jours en secondes)
 CACHE_WARMUP_SIZE = 50000  # Nombre de messages Kafka à lire au démarrage pour pré-remplir le cache
 
 CACHE_WARMUP_HOURS = {
-    "bluesky": 0.75,        # 1 heure 
-    "nostr": 24,         # 24 heures
-    "hackernews": 24,    # 24 heures
-    "stackoverflow": 24, # 24 heures
-    "rss": 24           # 24 heures
+    "bluesky": 0.75,        # 45 minutes
+    "nostr": 24,            # 24 heures
+    "hackernews": 24,       # 24 heures
+    "stackoverflow": 24,    # 24 heures
+    "rss": 24               # 24 heures
+}
+
+# Configuration avancée: activer/désactiver le warmup par source
+# Par défaut DÉSACTIVÉ - à activer manuellement selon les besoins
+CACHE_WARMUP_ENABLED = {
+    "bluesky": False,
+    "nostr": False,
+    "hackernews": False,
+    "stackoverflow": False,
+    "rss": False
 }
 
 NOSTR_RELAYS = [
-    "wss://relay.damus.io",
-    "wss://nos.lol",
-    "wss://relay.snort.social",
-    "wss://relay.primal.net",
-    "wss://nostr.wine"
+    # Relays principaux validés (haute disponibilité)
+
+    "wss://purplepag.es",
+    "wss://nostr.mom",
+
+    "wss://relay.nostr.com.au",
+    "wss://nostr.oxtr.dev",
+    "wss://relay.nsec.app",
+
+    "wss://eden.nostr.land"
 ]
 
 RSS_FEEDS = [
+    # Agrégateurs tech (validés ✓)
     "https://dev.to/feed",
     "https://hnrss.org/frontpage",
-    "https://www.reddit.com/r/programming/.rss",
+    "https://lobste.rs/rss",
+    
+    # Reddit (validés ✓ - certains ont rate limit temporaire)
     "https://www.reddit.com/r/machinelearning/.rss",
+    "https://www.reddit.com/r/datascience/.rss",
+    
+    # Cloud Providers (validés ✓)
     "https://aws.amazon.com/blogs/aws/feed/",
-    "https://cloud.google.com/blog/rss",
+    
+    # Langages & Frameworks (validés ✓)
     "https://blog.golang.org/feed.atom",
     "https://blog.rust-lang.org/feed.xml",
     "https://reactjs.org/feed.xml",
-    "https://openai.com/blog/rss/",
-    "https://www.anthropic.com/feed.xml",
+    
+    # DevOps & Infrastructure (validés ✓)
     "https://kubernetes.io/feed.xml",
-    "https://www.docker.com/blog/feed/"
+    "https://www.docker.com/blog/feed/",
+    "https://www.hashicorp.com/blog/feed.xml",
+    "https://about.gitlab.com/atom.xml",
+    "https://github.blog/feed/",
+    
+    # Tech News (validés ✓)
+    "https://techcrunch.com/feed/",
+    "https://arstechnica.com/feed/",
+    
+    # Developer Platforms (validés ✓)
+    "https://stackoverflow.blog/feed/",
 ]
 
-STACKOVERFLOW_TAGS = [
-    "python", "javascript", "typescript", "rust", "go", "java", "c++", "c#", "kotlin", "swift",
-    "php", "ruby", "scala", "haskell", "perl", "r", "julia", "elixir", "clojure", "dart",
-    "lua", "groovy", "objective-c", "assembly", "fortran", "cobol", "shell", "bash", "powershell",
-    "kubernetes", "docker", "aws", "azure", "google-cloud-platform", "terraform", "ansible",
-    "heroku", "digitalocean", "cloudflare", "vercel", "netlify", "openstack", "vagrant",
-    "aws-lambda", "azure-functions", "google-cloud-functions", "eks", "aks", "gke",
-    "jenkins", "gitlab-ci", "github-actions", "circleci", "travis-ci", "bamboo", "teamcity",
-    "devops", "prometheus", "grafana", "elasticsearch", "logstash", "kibana", "datadog",
-    "helm", "argocd", "flux", "pulumi", "crossplane", "istio", "envoy", "nginx", "apache",
-    "react", "vue.js", "angular", "nextjs", "nuxt.js", "svelte", "ember.js", "backbone.js",
-    "jquery", "bootstrap", "tailwindcss", "material-ui", "ant-design", "chakra-ui", "redux",
-    "webpack", "vite", "rollup", "parcel", "sass", "less", "styled-components",
-    "node.js", "express", "nestjs", "fastify", "koa", "hapi",
-    "django", "flask", "fastapi", "tornado", "pyramid", "aiohttp",
-    "spring-boot", "spring", "quarkus", "micronaut", "vert.x",
-    "laravel", "symfony", "codeigniter", "yii", "rails", "sinatra",
-    "asp.net", "asp.net-core", "asp.net-mvc", "blazor",
+# Tags Stack Overflow organisés par priorité pour rotation intelligente
+# Ceci permet de réduire les appels API de 4320/jour à ~720/jour
+
+# Haute priorité : Toujours scannés (langages et techs les plus populaires)
+STACKOVERFLOW_TAGS_HIGH = [
+    "python", "javascript", "typescript", "java", "c#", "c++", "go", "rust",
+    "react", "node.js", "docker", "kubernetes", "aws", "azure",
+    "machine-learning", "deep-learning", "pytorch", "tensorflow",
+    "postgresql", "mongodb", "mysql", "redis",
+    "git", "api", "rest", "microservices",
+]
+
+# Priorité moyenne : Rotation toutes les 2-3 cycles
+STACKOVERFLOW_TAGS_MEDIUM = [
+    "kotlin", "swift", "php", "ruby", "scala", "r", "dart", "flutter",
+    "angular", "vue.js", "nextjs", "svelte", "django", "flask", "fastapi",
+    "spring-boot", "laravel", "rails", "express", "nestjs",
+    "terraform", "ansible", "jenkins", "github-actions", "gitlab-ci",
+    "prometheus", "grafana", "elasticsearch", "nginx", "apache",
+    "llm", "chatgpt", "openai-api", "langchain", "transformers",
+    "apache-kafka", "apache-spark", "apache-airflow", "snowflake", "databricks",
+    "graphql", "grpc", "websocket", "oauth", "jwt",
+    "android", "ios", "react-native", "swiftui",
+    "testing", "pytest", "jest", "selenium", "cypress",
+    "devops", "cicd", "security", "authentication", "encryption",
+]
+
+# Priorité basse : Rotation lente (toutes les 5-10 cycles)
+STACKOVERFLOW_TAGS_LOW = [
+    "haskell", "perl", "julia", "elixir", "clojure", "lua", "groovy",
+    "objective-c", "assembly", "fortran", "cobol", "shell", "bash", "powershell",
+    "google-cloud-platform", "heroku", "digitalocean", "cloudflare", "vercel",
+    "netlify", "openstack", "vagrant", "aws-lambda", "azure-functions",
+    "google-cloud-functions", "eks", "aks", "gke",
+    "circleci", "travis-ci", "bamboo", "teamcity", "logstash", "kibana", "datadog",
+    "helm", "argocd", "flux", "pulumi", "crossplane", "istio", "envoy",
+    "ember.js", "backbone.js", "jquery", "bootstrap", "tailwindcss",
+    "material-ui", "ant-design", "chakra-ui", "redux", "webpack", "vite",
+    "rollup", "parcel", "sass", "less", "styled-components",
+    "fastify", "koa", "hapi", "tornado", "pyramid", "aiohttp",
+    "spring", "quarkus", "micronaut", "vert.x", "symfony", "codeigniter",
+    "yii", "sinatra", "asp.net", "asp.net-core", "asp.net-mvc", "blazor",
     "gin", "echo", "fiber", "beego",
-    "machine-learning", "deep-learning", "pytorch", "tensorflow", "keras", "scikit-learn",
-    "openai-api", "langchain", "huggingface-transformers", "spacy", "nltk", "opencv",
-    "computer-vision", "natural-language-processing", "neural-network", "reinforcement-learning",
-    "pandas", "numpy", "matplotlib", "seaborn", "plotly", "jupyter-notebook", "colab",
-    "llm", "chatgpt", "gpt-4", "transformers", "bert", "stable-diffusion",
-    "apache-kafka", "apache-spark", "apache-flink", "apache-beam", "apache-airflow",
-    "dbt", "snowflake", "databricks", "apache-hive", "apache-hadoop", "presto", "trino",
+    "keras", "scikit-learn", "huggingface-transformers", "spacy", "nltk",
+    "opencv", "computer-vision", "natural-language-processing",
+    "neural-network", "reinforcement-learning", "pandas", "numpy",
+    "matplotlib", "seaborn", "plotly", "jupyter-notebook", "colab",
+    "gpt-4", "bert", "stable-diffusion", "apache-flink", "apache-beam",
+    "dbt", "apache-hive", "apache-hadoop", "presto", "trino",
     "etl", "data-pipeline", "data-warehouse", "data-lake",
-    "postgresql", "mysql", "mongodb", "redis", "sqlite", "mariadb", "oracle-database",
-    "sql-server", "cassandra", "couchdb", "dynamodb", "firebase", "supabase",
-    "elasticsearch", "neo4j", "influxdb", "timescaledb", "cockroachdb", "clickhouse",
-    "sql", "nosql", "graphql", "prisma", "sequelize", "typeorm", "sqlalchemy",
-    "android", "ios", "flutter", "react-native", "swiftui", "jetpack-compose",
+    "sqlite", "mariadb", "oracle-database", "sql-server", "cassandra",
+    "couchdb", "dynamodb", "firebase", "supabase", "neo4j", "influxdb",
+    "timescaledb", "cockroachdb", "clickhouse", "sql", "nosql",
+    "prisma", "sequelize", "typeorm", "sqlalchemy",
     "xamarin", "ionic", "cordova", "expo", "kotlin-android", "swift-ios",
-    "security", "authentication", "oauth", "oauth-2.0", "jwt", "encryption", "ssl",
-    "https", "cors", "xss", "sql-injection", "penetration-testing", "cybersecurity",
-    "cryptography", "openssl", "keycloak", "auth0",
-    "api", "rest", "restful-api", "grpc", "websocket", "soap", "openapi", "swagger",
-    "microservices", "api-gateway", "kong", "rabbitmq", "zeromq", "mqtt",
-    "testing", "unit-testing", "integration-testing", "pytest", "jest", "mocha",
-    "selenium", "cypress", "playwright", "puppeteer", "testng", "junit",
-    "git", "github", "gitlab", "bitbucket", "git-merge", "git-rebase",
-    "design-patterns", "microservices-architecture", "clean-architecture", "ddd",
-    "event-driven", "cqrs", "saga-pattern", "solid-principles",
-    "containers", "docker-compose", "podman", "containerd", "kubernetes-helm",
-    "kubernetes-operator", "service-mesh",
-    "serverless", "aws-lambda", "azure-functions", "google-cloud-functions",
-    "vercel-functions", "netlify-functions", "cloudflare-workers",
-    "unity3d", "unreal-engine4", "godot", "game-development", "opengl", "vulkan", "directx",
-    "raspberry-pi", "arduino", "esp32", "embedded", "iot", "micropython", "platformio",
-    "blockchain", "ethereum", "solidity", "web3js", "smart-contracts", "nft", "defi",
-    "linux", "ubuntu", "debian", "centos", "fedora", "archlinux", "macos", "windows",
-    "systemd", "cron", "ssh", "networking"
+    "jetpack-compose", "https", "cors", "xss", "sql-injection",
+    "penetration-testing", "cybersecurity", "cryptography", "openssl",
+    "keycloak", "auth0", "restful-api", "soap", "openapi", "swagger",
+    "api-gateway", "kong", "rabbitmq", "zeromq", "mqtt",
+    "unit-testing", "integration-testing", "mocha", "playwright",
+    "puppeteer", "testng", "junit", "github", "gitlab", "bitbucket",
+    "git-merge", "git-rebase", "design-patterns", "microservices-architecture",
+    "clean-architecture", "ddd", "event-driven", "cqrs", "saga-pattern",
+    "solid-principles", "containers", "docker-compose", "podman",
+    "containerd", "kubernetes-helm", "kubernetes-operator", "service-mesh",
+    "serverless", "vercel-functions", "netlify-functions", "cloudflare-workers",
+    "unity3d", "unreal-engine4", "godot", "game-development",
+    "opengl", "vulkan", "directx", "raspberry-pi", "arduino", "esp32",
+    "embedded", "iot", "micropython", "platformio", "blockchain",
+    "ethereum", "solidity", "web3js", "smart-contracts", "nft", "defi",
+    "linux", "ubuntu", "debian", "centos", "fedora", "archlinux",
+    "macos", "windows", "systemd", "cron", "ssh", "networking",
 ]
 
-POLL_INTERVAL_HN = 300
-POLL_INTERVAL_SO = 600
-POLL_INTERVAL_RSS = 900
+# Configuration pour le système de rotation
+SO_BATCH_SIZE = 100  # Nombre maximum de tags par cycle (optimisé pour plus de volume)
+SO_ROTATION_CYCLE = 0  # Index de rotation (sera incrémenté à chaque cycle)
+
+STACKOVERFLOW_KEY = "rl_op3u9xnruk9ZXrLAf3MKMChQg"
+
+# Intervalles optimisés pour maximum de volume
+POLL_INTERVAL_HN = 120   # 2 minutes (au lieu de 5) - plus de stories HackerNews
+POLL_INTERVAL_SO = 300   # 5 minutes (au lieu de 10) - plus de questions Stack Overflow
+POLL_INTERVAL_RSS = 180  # 3 minutes (au lieu de 15) - plus d'articles RSS
 
 ALL_KEYWORDS = [
     "python", "javascript", "typescript", "rust", "golang", "go", "java", "c++", "c#",
