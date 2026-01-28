@@ -40,14 +40,24 @@ def get_s3_client():
 
 @st.cache_data(ttl=300)
 def load_parquet(bucket, path):
-    """Charge un fichier Parquet depuis S3"""
+    """Charge un fichier ou un dossier Parquet depuis S3"""
     try:
-        full_path = f"s3://{bucket}/{path}"
-        df = pd.read_parquet(full_path, storage_options={"anon": False})
+        # S'assurer que le chemin ne finit pas par un slash pour Pandas/S3FS
+        clean_path = path.rstrip('/')
+        full_path = f"s3://{bucket}/{clean_path}"
+        
+        # Utilisation de s3fs pour lire le dossier
+        df = pd.read_parquet(full_path, engine='pyarrow')
         return df
     except Exception as e:
-        st.error(f"Erreur chargement {path}: {e}")
-        return pd.DataFrame()
+        # Tentative avec le slash si sans slash echoue
+        try:
+            full_path = f"s3://{bucket}/{path}"
+            df = pd.read_parquet(full_path, engine='pyarrow')
+            return df
+        except:
+            st.error(f"Erreur chargement {path}: {e}")
+            return pd.DataFrame()
 
 @st.cache_data(ttl=300)
 def get_bucket_stats(bucket_name):
