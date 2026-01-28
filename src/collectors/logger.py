@@ -2,10 +2,8 @@ import os
 import signal
 import logging
 
-PROJECT_ROOT = os.path.dirname(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-)
-LOG_FILE = os.path.join(PROJECT_ROOT, "log.txt")
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+LOG_FILE = os.path.join(PROJECT_ROOT, "collectors.log")
 
 if not logging.getLogger().handlers:
     logging.basicConfig(
