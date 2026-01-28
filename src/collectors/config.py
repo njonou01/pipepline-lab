@@ -5,11 +5,11 @@ import os
 KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP", "localhost:9092")
 
 TOPICS = {
-    "bluesky": "raw-bluesky",
-    "nostr": "raw-nostr",
-    "hackernews": "raw-hackernews",
-    "stackoverflow": "raw-stackoverflow",
-    "rss": "raw-rss"
+    "bluesky": "bluesky",
+    "nostr": "nostr",
+    "hackernews": "hackernews",
+    "stackoverflow": "stackoverflow",
+    "rss": "rss"
 }
 
 BLUESKY_HANDLE = "njonou45.bsky.social"
