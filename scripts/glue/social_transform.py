@@ -45,7 +45,20 @@ raw_df = None
 
 try:
     print(f"Tentative de lecture depuis: {source_path}")
-    raw_df = spark.read.json(source_path)
+    
+    # Lecture avec support des Job Bookmarks via DynamicFrame
+    dynamic_frame = glueContext.create_dynamic_frame.from_options(
+        format_options={"multiline": False},
+        connection_type="s3",
+        format="json",
+        connection_options={
+            "paths": [source_path],
+            "recurse": True
+        },
+        transformation_ctx=f"extract_{source_name}"
+    )
+    
+    raw_df = dynamic_frame.toDF()
     
     row_count = raw_df.count()
     print(f"Lignes lues: {row_count}")
