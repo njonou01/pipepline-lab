@@ -9,7 +9,7 @@ from kafka import KafkaConsumer
 KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP", "localhost:9092")
 S3_BUCKET = os.getenv("S3_BUCKET", "uccnt-ef98cc0f-raw")
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
-BATCH_SIZE = int(os.getenv("BATCH_SIZE", "2000"))
+BATCH_SIZE = int(os.getenv("BATCH_SIZE", "10000"))
 BATCH_TIMEOUT_SEC = int(os.getenv("BATCH_TIMEOUT_SEC", "300"))
 
 TOPICS = [
@@ -35,7 +35,7 @@ class KafkaToS3:
             bootstrap_servers=KAFKA_BOOTSTRAP,
             auto_offset_reset="earliest",
             enable_auto_commit=True,
-            group_id="uccnt-s3-consumer",
+            group_id="uccnt-s3-consumer-reset-v4",
             value_deserializer=lambda x: json.loads(x.decode("utf-8")),
             consumer_timeout_ms=BATCH_TIMEOUT_SEC * 1000
         )
