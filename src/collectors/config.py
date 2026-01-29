@@ -1,6 +1,5 @@
 import os
 
-# UCCNT - Configuration | Équipe: UCCNT
 
 KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP", "localhost:9092")
 

@@ -4,6 +4,7 @@ Crée des agrégations et tendances pour l'analytics.
 """
 
 import sys
+import re
 from awsglue.transforms import *
 from awsglue.utils import getResolvedOptions
 from pyspark.context import SparkContext
@@ -13,9 +14,11 @@ from pyspark.sql.functions import (
     col, sum as _sum, count, avg, max as _max, min as _min,
     current_timestamp, to_date, explode, lower, hour, dayofweek,
     when, lit, collect_list, size, countDistinct, array,
-    weekofyear, year, month, concat, lpad, length, lag, round as _round
+    weekofyear, year, month, concat, lpad, length, lag, round as _round,
+    udf, format_string, regexp_replace
 )
 from pyspark.sql.window import Window
+from pyspark.sql.types import ArrayType, StringType, BooleanType
 
 args = getResolvedOptions(sys.argv, [
     'JOB_NAME',
@@ -84,7 +87,10 @@ if all_data is None or all_data.count() == 0:
     job.commit()
     sys.exit(0)
 
-print(f"Total: {all_data.count()} enregistrements")
+# Filtrer les données futures (ne garder que les données avant aujourd'hui)
+all_data = all_data.filter(col("collected_at") <= current_timestamp())
+
+print(f"Total: {all_data.count()} enregistrements (après filtrage des dates futures)")
 
 volume_by_source = all_data \
     .withColumn("date", to_date(col("collected_at"))) \
@@ -104,10 +110,19 @@ volume_by_source \
     .partitionBy("source") \
     .parquet(f"{analytics_path}volume_by_source/")
 
+
 keywords_exploded = all_data \
     .withColumn("date", to_date(col("collected_at"))) \
     .withColumn("keyword", explode(col("keywords"))) \
-    .withColumn("keyword", lower(col("keyword")))
+    .withColumn("keyword", lower(col("keyword"))) \
+    .filter(
+        # Pour les mots de ≤2 caractères, vérifier qu'ils sont isolés
+        # Approche: ajouter espaces au début/fin du contenu, puis chercher " keyword "
+        when(length(col("keyword")) <= 2,
+             concat(lit(" "), lower(col("content_clean")), lit(" "))
+             .contains(concat(lit(" "), col("keyword"), lit(" ")))
+        ).otherwise(lit(True))
+    )
 
 trending_keywords = keywords_exploded \
     .groupBy("date", "keyword") \

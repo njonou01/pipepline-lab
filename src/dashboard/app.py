@@ -60,13 +60,44 @@ def load_parquet(bucket, path):
             return pd.DataFrame()
 
 @st.cache_data(ttl=300)
+def format_bytes(size_bytes):
+    """Formatte une taille en octets de manière lisible (B, KB, MB, GB, etc.)"""
+    if size_bytes == 0:
+        return "0 B"
+    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+        if size_bytes < 1024:
+            return f"{size_bytes:.1f} {unit}"
+        size_bytes /= 1024
+    return f"{size_bytes:.1f} PB"
+
+@st.cache_data(ttl=300)
 def get_bucket_stats(bucket_name):
-    """Statistiques d'un bucket S3"""
+    """Statistiques d'un bucket S3 (compte TOUS les fichiers avec pagination)"""
     try:
         s3 = get_s3_client()
-        response = s3.list_objects_v2(Bucket=bucket_name, MaxKeys=1000)
-        count = response.get('KeyCount', 0)
-        size = sum(obj.get('Size', 0) for obj in response.get('Contents', [])) / (1024*1024)
+        count = 0
+        size = 0
+        continuation_token = None
+        
+        # Paginer pour compter tous les fichiers
+        while True:
+            if continuation_token:
+                response = s3.list_objects_v2(
+                    Bucket=bucket_name,
+                    MaxKeys=1000,
+                    ContinuationToken=continuation_token
+                )
+            else:
+                response = s3.list_objects_v2(Bucket=bucket_name, MaxKeys=1000)
+            
+            count += response.get('KeyCount', 0)
+            size += sum(obj.get('Size', 0) for obj in response.get('Contents', []))
+            
+            # Vérifier s'il y a plus de résultats
+            if not response.get('IsTruncated', False):
+                break
+            continuation_token = response.get('NextContinuationToken')
+        
         return count, size
     except:
         return 0, 0
@@ -190,9 +221,9 @@ with st.sidebar:
     p_count, p_size = get_bucket_stats(PROCESSED_BUCKET)
     c_count, c_size = get_bucket_stats(CURATED_BUCKET)
 
-    st.caption(f"Raw: {r_count} fichiers ({r_size:.1f} MB)")
-    st.caption(f"Processed: {p_count} fichiers ({p_size:.1f} MB)")
-    st.caption(f"Curated: {c_count} fichiers ({c_size*1024:.1f} KB)")
+    st.caption(f"Raw: {r_count:,} fichiers ({format_bytes(r_size)})")
+    st.caption(f"Processed: {p_count:,} fichiers ({format_bytes(p_size)})")
+    st.caption(f"Curated: {c_count:,} fichiers ({format_bytes(c_size)})")
 
     st.markdown("---")
     st.caption("Sources: Bluesky, Nostr, HackerNews, StackOverflow, RSS")
@@ -448,19 +479,10 @@ elif page == "Volume & Sources":
             st.plotly_chart(fig_total, use_container_width=True)
 
         with col2:
-            # Unique posts
-            if 'unique_posts' in df_vol.columns:
-                unique_by_source = df_vol.groupby('source')['unique_posts'].sum().reset_index()
-                fig_unique = px.bar(
-                    unique_by_source,
-                    x='source',
-                    y='unique_posts',
-                    color='source',
-                    color_discrete_map=SOURCE_COLORS,
-                    title="Posts uniques par source"
-                )
-                fig_unique.update_layout(showlegend=False)
-                st.plotly_chart(fig_unique, use_container_width=True)
+            st.empty() # Placeholder vide au lieu du graphique unique posts
+            # Histogramme Total (redondant mais garde la structure) ou autre métrique
+            # Pour l'instant on laisse vide ou on met une info
+            st.info("Visualisation des posts uniques désactivée")
 
         # Tableau detaille
         st.subheader("Donnees detaillees")
@@ -497,7 +519,7 @@ elif page == "Croissance":
 
             # Tableau
             st.dataframe(
-                df_week[['year_week', 'source', 'total_posts', 'unique_posts']].sort_values(['year_week', 'source'], ascending=[False, True]),
+                df_week[['year_week', 'source', 'total_posts']].sort_values(['year_week', 'source'], ascending=[False, True]),
                 hide_index=True,
                 use_container_width=True
             )
@@ -534,7 +556,7 @@ elif page == "Croissance":
             )
             st.plotly_chart(fig_month_line, use_container_width=True)
 
-            st.dataframe(df_month, hide_index=True, use_container_width=True)
+            st.dataframe(df_month[['year_month', 'source', 'total_posts']], hide_index=True, use_container_width=True)
         else:
             st.info("Pas de donnees mensuelles - Relancez le job d'agregation")
 

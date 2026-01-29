@@ -686,12 +686,13 @@ resource "aws_glue_job" "transform_social" {
   }
 
   default_arguments = {
-    "--job-language"   = "python"
-    "--TempDir"        = "s3://${aws_s3_bucket.scripts.id}/temp/"
-    "--source_bucket"  = aws_s3_bucket.raw.id
-    "--target_bucket"  = aws_s3_bucket.processed.id
-    "--source_name"    = each.value
-    "--enable-metrics" = "true"
+    "--job-language"        = "python"
+    "--TempDir"             = "s3://${aws_s3_bucket.scripts.id}/temp/"
+    "--source_bucket"       = aws_s3_bucket.raw.id
+    "--target_bucket"       = aws_s3_bucket.processed.id
+    "--source_name"         = each.value
+    "--enable-metrics"      = "true"
+    "--job-bookmark-option" = "job-bookmark-enable"
   }
 
   glue_version      = "4.0"
@@ -719,11 +720,12 @@ resource "aws_glue_job" "aggregation" {
   }
 
   default_arguments = {
-    "--job-language"   = "python"
-    "--TempDir"        = "s3://${aws_s3_bucket.scripts.id}/temp/"
-    "--source_bucket"  = aws_s3_bucket.processed.id
-    "--target_bucket"  = aws_s3_bucket.curated.id
-    "--enable-metrics" = "true"
+    "--job-language"        = "python"
+    "--TempDir"             = "s3://${aws_s3_bucket.scripts.id}/temp/"
+    "--source_bucket"       = aws_s3_bucket.processed.id
+    "--target_bucket"       = aws_s3_bucket.curated.id
+    "--enable-metrics"      = "true"
+    "--job-bookmark-option" = "job-bookmark-enable"
   }
 
   glue_version      = "4.0"
