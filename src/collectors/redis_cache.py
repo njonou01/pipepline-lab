@@ -27,7 +27,6 @@ class RedisCache:
                 decode_responses=True,
                 socket_connect_timeout=5,
             )
-            # Test de connexion
             self.redis.ping()
             logger.info(f"[{source_name}] Connecté à Redis {REDIS_HOST}:{REDIS_PORT}")
         except Exception as e:
@@ -65,7 +64,6 @@ class RedisCache:
         if self.redis:
             try:
                 self.redis.sadd(self.key, str(item_id))
-                # Définir TTL sur la clé (auto-nettoyage après 24h)
                 self.redis.expire(self.key, CACHE_TTL)
             except Exception as e:
                 logger.error(f"Erreur Redis add: {e}")
@@ -98,15 +96,14 @@ class RedisCache:
             bootstrap_servers: Serveurs Kafka
             hours_back: Nombre d'heures en arrière (défaut: 24h)
         """
-        # Vérifier si le warmup est activé pour cette source
         try:
             from config import CACHE_WARMUP_ENABLED
             if not CACHE_WARMUP_ENABLED.get(self.source_name, True):
                 logger.info(f"[{self.source_name}] Warmup désactivé dans la configuration")
                 return
         except ImportError:
-            pass  # Si la config n'existe pas, continuer normalement
-        
+            pass
+
         try:
             from kafka import KafkaConsumer, TopicPartition
             from datetime import datetime, timedelta
@@ -116,7 +113,6 @@ class RedisCache:
                 f"[{self.source_name}] Warmup: lecture des messages des dernières {hours_back}h de '{topic_name}'..."
             )
 
-            # Créer consumer sans subscribe (on va utiliser assign)
             consumer = KafkaConsumer(
                 bootstrap_servers=bootstrap_servers,
                 auto_offset_reset="latest",
@@ -125,7 +121,6 @@ class RedisCache:
                 consumer_timeout_ms=5000,
             )
 
-            # Obtenir les partitions
             partitions = consumer.partitions_for_topic(topic_name)
             if not partitions:
                 logger.warning(
@@ -134,11 +129,9 @@ class RedisCache:
                 consumer.close()
                 return
 
-            # Assigner les partitions manuellement
             topic_partitions = [TopicPartition(topic_name, p) for p in partitions]
             consumer.assign(topic_partitions)
 
-            # Calculer le timestamp (en millisecondes)
             target_time = datetime.now() - timedelta(hours=hours_back)
             timestamp_ms = int(target_time.timestamp() * 1000)
 
@@ -146,7 +139,6 @@ class RedisCache:
                 f"[{self.source_name}] Recherche des messages depuis {target_time.strftime('%Y-%m-%d %H:%M:%S')}"
             )
 
-            # Positionner le consumer au timestamp pour chaque partition
             timestamps = {tp: timestamp_ms for tp in topic_partitions}
             offsets = consumer.offsets_for_times(timestamps)
 
@@ -154,10 +146,8 @@ class RedisCache:
                 if offset_and_timestamp is not None:
                     consumer.seek(tp, offset_and_timestamp.offset)
                 else:
-                    # Si pas de message à ce timestamp, partir du début
                     consumer.seek_to_beginning(tp)
 
-            # Lire les messages
             count = 0
             for message in consumer:
                 try:
@@ -166,7 +156,6 @@ class RedisCache:
                     if item_id:
                         self.add(item_id)
                         count += 1
-                        # Log progression tous les 10k messages
                         if count % 10000 == 0:
                             logger.info(
                                 f"[{self.source_name}] Warmup: {count} IDs chargés..."

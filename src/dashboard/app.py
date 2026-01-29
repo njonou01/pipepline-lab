@@ -42,15 +42,12 @@ def get_s3_client():
 def load_parquet(bucket, path):
     """Charge un fichier ou un dossier Parquet depuis S3"""
     try:
-        # S'assurer que le chemin ne finit pas par un slash pour Pandas/S3FS
         clean_path = path.rstrip('/')
         full_path = f"s3://{bucket}/{clean_path}"
-        
-        # Utilisation de s3fs pour lire le dossier
+
         df = pd.read_parquet(full_path, engine='pyarrow')
         return df
     except Exception as e:
-        # Tentative avec le slash si sans slash echoue
         try:
             full_path = f"s3://{bucket}/{path}"
             df = pd.read_parquet(full_path, engine='pyarrow')
@@ -78,8 +75,7 @@ def get_bucket_stats(bucket_name):
         count = 0
         size = 0
         continuation_token = None
-        
-        # Paginer pour compter tous les fichiers
+
         while True:
             if continuation_token:
                 response = s3.list_objects_v2(
@@ -89,15 +85,14 @@ def get_bucket_stats(bucket_name):
                 )
             else:
                 response = s3.list_objects_v2(Bucket=bucket_name, MaxKeys=1000)
-            
+
             count += response.get('KeyCount', 0)
             size += sum(obj.get('Size', 0) for obj in response.get('Contents', []))
-            
-            # Vérifier s'il y a plus de résultats
+
             if not response.get('IsTruncated', False):
                 break
             continuation_token = response.get('NextContinuationToken')
-        
+
         return count, size
     except:
         return 0, 0
@@ -107,85 +102,71 @@ def load_curated_data():
     """Charge toutes les donnees curated"""
     data = {}
 
-    # Global summary
     try:
         data['global_summary'] = load_parquet(CURATED_BUCKET, "reports/global_summary/")
     except:
         data['global_summary'] = pd.DataFrame()
 
-    # Source summary
     try:
         data['source_summary'] = load_parquet(CURATED_BUCKET, "reports/source_summary/")
     except:
         data['source_summary'] = pd.DataFrame()
 
-    # Volume by source
     try:
         data['volume'] = load_parquet(CURATED_BUCKET, "analytics/volume_by_source/")
     except:
         data['volume'] = pd.DataFrame()
 
-    # Trending keywords
     try:
         data['keywords'] = load_parquet(CURATED_BUCKET, "trends/keywords/")
     except:
         data['keywords'] = pd.DataFrame()
 
-    # Trending categories
     try:
         data['categories'] = load_parquet(CURATED_BUCKET, "trends/categories/")
     except:
         data['categories'] = pd.DataFrame()
 
-    # Hourly activity
     try:
         data['hourly'] = load_parquet(CURATED_BUCKET, "analytics/hourly_activity/")
     except:
         data['hourly'] = pd.DataFrame()
 
-    # Remapping stats
     try:
         data['remapping'] = load_parquet(CURATED_BUCKET, "analytics/remapping_stats/")
     except:
         data['remapping'] = pd.DataFrame()
 
-    # Volume par semaine
     try:
         data['volume_week'] = load_parquet(CURATED_BUCKET, "analytics/volume_by_week/")
     except:
         data['volume_week'] = pd.DataFrame()
 
-    # Volume par mois
     try:
         data['volume_month'] = load_parquet(CURATED_BUCKET, "analytics/volume_by_month/")
     except:
         data['volume_month'] = pd.DataFrame()
 
-    # Taux de croissance
     try:
         data['growth'] = load_parquet(CURATED_BUCKET, "analytics/growth_rate/")
     except:
         data['growth'] = pd.DataFrame()
 
-    # Stats contenu
     try:
         data['content_stats'] = load_parquet(CURATED_BUCKET, "analytics/content_stats/")
     except:
         data['content_stats'] = pd.DataFrame()
 
-    # Keywords cross-source
     try:
         data['cross_keywords'] = load_parquet(CURATED_BUCKET, "trends/cross_source_keywords/")
     except:
         data['cross_keywords'] = pd.DataFrame()
 
-    # Keywords par source
     try:
         data['keywords_by_source'] = load_parquet(CURATED_BUCKET, "trends/keywords_by_source/")
     except:
         data['keywords_by_source'] = pd.DataFrame()
 
-    # Extended summary
     try:
         data['extended_summary'] = load_parquet(CURATED_BUCKET, "reports/extended_summary/")
     except:
@@ -234,7 +215,6 @@ if page == "Vue d'ensemble":
     st.title("Vue d'ensemble")
     st.caption("Metriques globales du Data Lake UCCNCT")
 
-    # Metriques principales
     col1, col2, col3, col4 = st.columns(4)
 
     if not data['global_summary'].empty:
@@ -251,7 +231,6 @@ if page == "Vue d'ensemble":
 
     st.markdown("---")
 
-    # Resume par source
     col_left, col_right = st.columns(2)
 
     with col_left:
@@ -291,7 +270,6 @@ if page == "Vue d'ensemble":
 
     st.markdown("---")
 
-    # Top Keywords rapide
     st.subheader("Top 10 Keywords")
     if not data['keywords'].empty:
         top_kw = data['keywords'].nlargest(10, 'mentions')
@@ -313,9 +291,6 @@ if page == "Vue d'ensemble":
     else:
         st.info("Pas de donnees de keywords")
 
-# =============================================================================
-# PAGE: TENDANCES
-# =============================================================================
 elif page == "Tendances":
     st.title("Tendances")
     st.caption("Mots-cles et categories en vogue")
@@ -324,7 +299,6 @@ elif page == "Tendances":
 
     with tab1:
         if not data['keywords'].empty:
-            # Filtre par date si disponible
             if 'date' in data['keywords'].columns:
                 dates = pd.to_datetime(data['keywords']['date']).dt.date.unique()
                 selected_date = st.selectbox("Date", sorted(dates, reverse=True))
@@ -391,7 +365,6 @@ elif page == "Tendances":
             col1, col2 = st.columns([2, 1])
 
             with col1:
-                # Top keywords viraux
                 top_viral = df_cross.nlargest(20, 'total_mentions')
                 fig_viral = px.bar(
                     top_viral,
@@ -406,7 +379,6 @@ elif page == "Tendances":
                 st.plotly_chart(fig_viral, use_container_width=True)
 
             with col2:
-                # Stats
                 viral_count = df_cross[df_cross['is_viral'] == True].shape[0] if 'is_viral' in df_cross.columns else 0
                 total_cross = len(df_cross)
 
@@ -420,7 +392,6 @@ elif page == "Tendances":
                     for kw in viral_kw:
                         st.write(f"- {kw}")
 
-            # Tableau complet
             st.subheader("Tableau complet")
             display_cols = ['keyword', 'total_mentions', 'sources_count']
             if 'is_viral' in df_cross.columns:
@@ -429,15 +400,11 @@ elif page == "Tendances":
         else:
             st.info("Pas de donnees cross-source - Relancez le job d'agregation")
 
-# =============================================================================
-# PAGE: VOLUME & SOURCES
-# =============================================================================
 elif page == "Volume & Sources":
     st.title("Volume & Sources")
     st.caption("Evolution et comparaison des sources")
 
     if not data['volume'].empty:
-        # Evolution temporelle
         st.subheader("Evolution du volume")
 
         df_vol = data['volume'].copy()
@@ -459,13 +426,11 @@ elif page == "Volume & Sources":
             )
             st.plotly_chart(fig_line, use_container_width=True)
 
-        # Comparaison par source
         st.subheader("Comparaison par Source")
 
         col1, col2 = st.columns(2)
 
         with col1:
-            # Total par source
             total_by_source = df_vol.groupby('source')['total_posts'].sum().reset_index()
             fig_total = px.bar(
                 total_by_source,
@@ -479,27 +444,20 @@ elif page == "Volume & Sources":
             st.plotly_chart(fig_total, use_container_width=True)
 
         with col2:
-            st.empty() # Placeholder vide au lieu du graphique unique posts
-            # Histogramme Total (redondant mais garde la structure) ou autre métrique
-            # Pour l'instant on laisse vide ou on met une info
+            st.empty()
             st.info("Visualisation des posts uniques désactivée")
 
-        # Tableau detaille
         st.subheader("Donnees detaillees")
         st.dataframe(df_vol, hide_index=True, use_container_width=True)
     else:
         st.info("Pas de donnees de volume")
 
-# =============================================================================
-# PAGE: CROISSANCE
-# =============================================================================
 elif page == "Croissance":
     st.title("Croissance & KPIs")
     st.caption("Indicateurs de performance et evolution")
 
     tab1, tab2, tab3, tab4 = st.tabs(["Par Semaine", "Par Mois", "Taux de Croissance", "Contenu"])
 
-    # --- TAB 1: Volume par semaine ---
     with tab1:
         st.subheader("Volume par Semaine")
         if not data['volume_week'].empty:
@@ -517,7 +475,6 @@ elif page == "Croissance":
             fig_week.update_layout(xaxis_title="Semaine", yaxis_title="Nombre de posts")
             st.plotly_chart(fig_week, use_container_width=True)
 
-            # Tableau
             st.dataframe(
                 df_week[['year_week', 'source', 'total_posts']].sort_values(['year_week', 'source'], ascending=[False, True]),
                 hide_index=True,
@@ -526,7 +483,6 @@ elif page == "Croissance":
         else:
             st.info("Pas de donnees hebdomadaires - Relancez le job d'agregation")
 
-    # --- TAB 2: Volume par mois ---
     with tab2:
         st.subheader("Volume par Mois")
         if not data['volume_month'].empty:
@@ -544,7 +500,6 @@ elif page == "Croissance":
             fig_month.update_layout(xaxis_title="Mois", yaxis_title="Nombre de posts")
             st.plotly_chart(fig_month, use_container_width=True)
 
-            # Evolution par source
             fig_month_line = px.line(
                 df_month,
                 x='year_month',
@@ -560,14 +515,12 @@ elif page == "Croissance":
         else:
             st.info("Pas de donnees mensuelles - Relancez le job d'agregation")
 
-    # --- TAB 3: Taux de croissance ---
     with tab3:
         st.subheader("Taux de Croissance Jour/Jour")
         if not data['growth'].empty:
             df_growth = data['growth'].copy()
             df_growth['date'] = pd.to_datetime(df_growth['date'])
 
-            # Filtre par source
             sources = df_growth['source'].unique().tolist()
             selected_source = st.selectbox("Source", ["Toutes"] + sources)
 
@@ -576,7 +529,6 @@ elif page == "Croissance":
             else:
                 df_filtered = df_growth
 
-            # Graphique croissance
             fig_growth = px.line(
                 df_filtered,
                 x='date',
@@ -590,7 +542,6 @@ elif page == "Croissance":
             fig_growth.update_layout(yaxis_title="Croissance (%)", xaxis_title="Date")
             st.plotly_chart(fig_growth, use_container_width=True)
 
-            # Metriques
             col1, col2, col3 = st.columns(3)
 
             if 'growth_pct' in df_filtered.columns:
@@ -602,7 +553,6 @@ elif page == "Croissance":
                 col2.metric("Max croissance", f"{max_growth:.1f}%" if pd.notna(max_growth) else "N/A")
                 col3.metric("Min croissance", f"{min_growth:.1f}%" if pd.notna(min_growth) else "N/A")
 
-            # Tableau
             st.dataframe(
                 df_filtered[['date', 'source', 'total_posts', 'prev_day_posts', 'growth_pct', 'growth_abs']].sort_values('date', ascending=False),
                 hide_index=True,
@@ -611,7 +561,6 @@ elif page == "Croissance":
         else:
             st.info("Pas de donnees de croissance - Relancez le job d'agregation")
 
-    # --- TAB 4: Stats contenu ---
     with tab4:
         st.subheader("Statistiques de Contenu")
         if not data['content_stats'].empty:
@@ -621,7 +570,6 @@ elif page == "Croissance":
             col1, col2 = st.columns(2)
 
             with col1:
-                # Longueur moyenne par source
                 avg_by_source = df_content.groupby('source')['avg_length'].mean().reset_index()
                 fig_len = px.bar(
                     avg_by_source,
@@ -635,7 +583,6 @@ elif page == "Croissance":
                 st.plotly_chart(fig_len, use_container_width=True)
 
             with col2:
-                # Posts longs vs courts
                 totals = df_content.groupby('source').agg({
                     'long_posts': 'sum',
                     'short_posts': 'sum'
@@ -652,7 +599,6 @@ elif page == "Croissance":
                 )
                 st.plotly_chart(fig_type, use_container_width=True)
 
-            # Evolution longueur dans le temps
             st.subheader("Evolution de la longueur moyenne")
             fig_len_time = px.line(
                 df_content,
@@ -668,9 +614,6 @@ elif page == "Croissance":
         else:
             st.info("Pas de stats contenu - Relancez le job d'agregation")
 
-# =============================================================================
-# PAGE: ACTIVITE
-# =============================================================================
 elif page == "Activite":
     st.title("Patterns d'Activite")
     st.caption("Analyse temporelle de l'activite")
@@ -678,17 +621,14 @@ elif page == "Activite":
     if not data['hourly'].empty:
         df_hourly = data['hourly'].copy()
 
-        # Heatmap activite par heure
         st.subheader("Activite par heure")
 
-        # Filtre par source
         sources = df_hourly['source'].unique().tolist()
         selected_sources = st.multiselect("Sources", sources, default=sources)
 
         df_filtered = df_hourly[df_hourly['source'].isin(selected_sources)]
 
         if not df_filtered.empty:
-            # Agreger par heure
             hourly_agg = df_filtered.groupby('hour')['post_count'].sum().reset_index()
 
             fig_hourly = px.bar(
@@ -701,7 +641,6 @@ elif page == "Activite":
             fig_hourly.update_layout(xaxis=dict(tickmode='linear', dtick=1))
             st.plotly_chart(fig_hourly, use_container_width=True)
 
-            # Heatmap par source et heure
             st.subheader("Heatmap Source x Heure")
 
             pivot = df_filtered.pivot_table(
@@ -720,7 +659,6 @@ elif page == "Activite":
             )
             st.plotly_chart(fig_heatmap, use_container_width=True)
 
-            # Par jour de la semaine si disponible
             if 'day_of_week' in df_filtered.columns:
                 st.subheader("Activite par jour de la semaine")
 
@@ -742,7 +680,6 @@ elif page == "Activite":
     else:
         st.info("Pas de donnees d'activite horaire")
 
-    # Stats remapping
     st.markdown("---")
     st.subheader("Statistiques de Remapping")
 
@@ -777,14 +714,10 @@ elif page == "Activite":
     else:
         st.info("Pas de statistiques de remapping")
 
-# =============================================================================
-# PAGE: REQUETES SQL (ATHENA)
-# =============================================================================
 elif page == "Requetes SQL":
     st.title("Requetes SQL (Athena)")
     st.caption("Interrogez les donnees avec SQL via AWS Athena")
 
-    # Configuration Athena
     ATHENA_DATABASE = "uccnt_dev_db"
     ATHENA_OUTPUT = f"s3://{CURATED_BUCKET}/athena-results/"
 
@@ -797,7 +730,6 @@ elif page == "Requetes SQL":
         athena = get_athena_client()
 
         try:
-            # Lancer la requete
             response = athena.start_query_execution(
                 QueryString=query,
                 QueryExecutionContext={'Database': database},
@@ -805,7 +737,6 @@ elif page == "Requetes SQL":
             )
             query_id = response['QueryExecutionId']
 
-            # Attendre la fin de l'execution
             while True:
                 status = athena.get_query_execution(QueryExecutionId=query_id)
                 state = status['QueryExecution']['Status']['State']
@@ -819,12 +750,10 @@ elif page == "Requetes SQL":
                 import time
                 time.sleep(1)
 
-            # Recuperer les resultats
             results = athena.get_query_results(QueryExecutionId=query_id)
 
-            # Convertir en DataFrame
             columns = [col['Label'] for col in results['ResultSet']['ResultSetMetadata']['ColumnInfo']]
-            rows = results['ResultSet']['Rows'][1:]  # Skip header row
+            rows = results['ResultSet']['Rows'][1:]
 
             data = []
             for row in rows:
@@ -835,7 +764,6 @@ elif page == "Requetes SQL":
         except Exception as e:
             return None, str(e)
 
-    # Exemples de requetes
     st.subheader("Exemples de requetes")
 
     example_queries = {
@@ -898,7 +826,6 @@ LIMIT 1
 
     selected_example = st.selectbox("Choisir un exemple", ["-- Selectionner --"] + list(example_queries.keys()))
 
-    # Zone de requete
     st.subheader("Votre requete")
 
     default_query = ""
@@ -929,10 +856,8 @@ LIMIT 1
             elif df_result is not None:
                 st.success(f"Requete executee avec succes - {len(df_result)} lignes")
 
-                # Afficher les resultats
                 st.dataframe(df_result, use_container_width=True, hide_index=True)
 
-                # Option de telechargement
                 csv = df_result.to_csv(index=False)
                 st.download_button(
                     label="Telecharger CSV",
@@ -943,7 +868,6 @@ LIMIT 1
 
     st.markdown("---")
 
-    # Info sur les tables disponibles
     st.subheader("Tables disponibles")
 
     tables_info = """
@@ -964,19 +888,14 @@ LIMIT 1
 
     st.caption("Note: Les tables doivent etre creees dans le Glue Data Catalog via Terraform ou Athena CREATE EXTERNAL TABLE")
 
-# =============================================================================
-# PAGE: EXPLORATEUR S3
-# =============================================================================
 elif page == "Explorateur S3":
     st.title("Explorateur S3")
     st.caption("Navigation dans les donnees brutes")
 
     s3 = get_s3_client()
 
-    # Selection du bucket
     bucket = st.selectbox("Bucket", [RAW_BUCKET, PROCESSED_BUCKET, CURATED_BUCKET])
 
-    # Prefix (dossier)
     prefix = st.text_input("Prefix (dossier)", "")
 
     if st.button("Lister"):
@@ -995,7 +914,6 @@ elif page == "Explorateur S3":
 
                 st.dataframe(pd.DataFrame(data_list), hide_index=True, use_container_width=True)
 
-                # Stats
                 total_size = sum(obj['Size'] for obj in objects) / (1024 * 1024)
                 st.caption(f"Total: {len(objects)} fichiers, {total_size:.2f} MB")
             else:
@@ -1005,7 +923,6 @@ elif page == "Explorateur S3":
 
     st.markdown("---")
 
-    # Apercu d'un fichier JSON
     st.subheader("Apercu fichier JSON")
 
     file_key = st.text_input("Chemin du fichier (ex: bluesky/year=2026/...)")
@@ -1015,7 +932,6 @@ elif page == "Explorateur S3":
             response = s3.get_object(Bucket=bucket, Key=file_key)
             content = response['Body'].read().decode('utf-8')
 
-            # Prendre les 5 premieres lignes
             lines = content.strip().split('\n')[:5]
 
             st.code('\n'.join(lines), language='json')
@@ -1023,8 +939,5 @@ elif page == "Explorateur S3":
         except Exception as e:
             st.error(f"Erreur: {e}")
 
-# =============================================================================
-# FOOTER
-# =============================================================================
 st.markdown("---")
 st.caption(f"UCCNCT Dashboard | Donnees actualisees: {datetime.now().strftime('%Y-%m-%d %H:%M')} | Sources: Bluesky, Nostr, HackerNews, StackOverflow, RSS")

@@ -87,7 +87,6 @@ if all_data is None or all_data.count() == 0:
     job.commit()
     sys.exit(0)
 
-# Filtrer les données futures (ne garder que les données avant aujourd'hui)
 all_data = all_data.filter(col("collected_at") <= current_timestamp())
 
 print(f"Total: {all_data.count()} enregistrements (après filtrage des dates futures)")
@@ -116,8 +115,6 @@ keywords_exploded = all_data \
     .withColumn("keyword", explode(col("keywords"))) \
     .withColumn("keyword", lower(col("keyword"))) \
     .filter(
-        # Pour les mots de ≤2 caractères, vérifier qu'ils sont isolés
-        # Approche: ajouter espaces au début/fin du contenu, puis chercher " keyword "
         when(length(col("keyword")) <= 2,
              concat(lit(" "), lower(col("content_clean")), lit(" "))
              .contains(concat(lit(" "), col("keyword"), lit(" ")))
@@ -222,9 +219,6 @@ source_summary \
     .mode("overwrite") \
     .parquet(f"{reports_path}source_summary/")
 
-# =============================================================================
-# 7. VOLUME PAR SEMAINE
-# =============================================================================
 volume_by_week = all_data \
     .withColumn("year", year(col("collected_at"))) \
     .withColumn("week", weekofyear(col("collected_at"))) \
@@ -247,9 +241,6 @@ volume_by_week \
     .partitionBy("source") \
     .parquet(f"{analytics_path}volume_by_week/")
 
-# =============================================================================
-# 8. VOLUME PAR MOIS
-# =============================================================================
 volume_by_month = all_data \
     .withColumn("year", year(col("collected_at"))) \
     .withColumn("month", month(col("collected_at"))) \
@@ -272,9 +263,6 @@ volume_by_month \
     .partitionBy("source") \
     .parquet(f"{analytics_path}volume_by_month/")
 
-# =============================================================================
-# 9. TAUX DE CROISSANCE JOUR/JOUR
-# =============================================================================
 window_growth = Window.partitionBy("source").orderBy("date")
 
 growth_rate = all_data \
@@ -299,9 +287,6 @@ growth_rate \
     .partitionBy("source") \
     .parquet(f"{analytics_path}growth_rate/")
 
-# =============================================================================
-# 10. STATS CONTENU (longueur, etc.)
-# =============================================================================
 content_stats = all_data \
     .withColumn("date", to_date(col("collected_at"))) \
     .withColumn("content_length", length(col("content_clean"))) \
@@ -326,9 +311,6 @@ content_stats \
     .partitionBy("source") \
     .parquet(f"{analytics_path}content_stats/")
 
-# =============================================================================
-# 11. KEYWORDS CROSS-SOURCE (presents sur plusieurs sources)
-# =============================================================================
 cross_source_keywords = keywords_exploded \
     .groupBy("keyword") \
     .agg(
@@ -348,9 +330,6 @@ cross_source_keywords \
     .mode("overwrite") \
     .parquet(f"{trends_path}cross_source_keywords/")
 
-# =============================================================================
-# 12. KEYWORDS PAR SOURCE (top keywords de chaque source)
-# =============================================================================
 keywords_by_source = keywords_exploded \
     .groupBy("source", "keyword") \
     .agg(count("*").alias("mentions")) \
@@ -365,10 +344,6 @@ keywords_by_source \
     .partitionBy("source") \
     .parquet(f"{trends_path}keywords_by_source/")
 
-# =============================================================================
-# 13. RESUME ETENDU
-# =============================================================================
-# Calculer unique_keywords separement (explode ne peut pas etre dans agg)
 unique_kw_count = keywords_exploded.select("keyword").distinct().count()
 
 extended_summary = all_data \

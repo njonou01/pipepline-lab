@@ -24,7 +24,7 @@ def send_message(producer, topic, data, key=None):
         future.get(timeout=10)
         logger.debug(
             f"Envoyé vers {topic}: {key or 'sans-clé'}"
-        )  # DEBUG: chaque message
+        )
         return True
     except Exception as e:
         logger.error(f"Erreur envoi vers {topic}: {e}")

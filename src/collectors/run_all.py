@@ -49,7 +49,6 @@ def main():
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
-    # Propager SIGUSR1/SIGUSR2 aux enfants
     try:
         signal.signal(signal.SIGUSR1, propagate_signal)
         signal.signal(signal.SIGUSR2, propagate_signal)

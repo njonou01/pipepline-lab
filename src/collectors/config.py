@@ -18,19 +18,17 @@ REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = 6379
 REDIS_PASSWORD = "mon_super_password"
 REDIS_DB = 0
-CACHE_TTL = 604800  # 1 semaine (7 jours en secondes)
-CACHE_WARMUP_SIZE = 50000  # Nombre de messages Kafka à lire au démarrage pour pré-remplir le cache
+CACHE_TTL = 604800
+CACHE_WARMUP_SIZE = 50000
 
 CACHE_WARMUP_HOURS = {
-    "bluesky": 0.75,        # 45 minutes
-    "nostr": 24,            # 24 heures
-    "hackernews": 24,       # 24 heures
-    "stackoverflow": 24,    # 24 heures
-    "rss": 24               # 24 heures
+    "bluesky": 0.75,
+    "nostr": 24,
+    "hackernews": 24,
+    "stackoverflow": 24,
+    "rss": 24
 }
 
-# Configuration avancée: activer/désactiver le warmup par source
-# Par défaut DÉSACTIVÉ - à activer manuellement selon les besoins
 CACHE_WARMUP_ENABLED = {
     "bluesky": False,
     "nostr": False,
@@ -40,7 +38,6 @@ CACHE_WARMUP_ENABLED = {
 }
 
 NOSTR_RELAYS = [
-    # Relays principaux validés (haute disponibilité)
 
     "wss://purplepag.es",
     "wss://nostr.mom",
@@ -53,42 +50,32 @@ NOSTR_RELAYS = [
 ]
 
 RSS_FEEDS = [
-    # Agrégateurs tech (validés ✓)
     "https://dev.to/feed",
     "https://hnrss.org/frontpage",
     "https://lobste.rs/rss",
-    
-    # Reddit (validés ✓ - certains ont rate limit temporaire)
+
     "https://www.reddit.com/r/machinelearning/.rss",
     "https://www.reddit.com/r/datascience/.rss",
-    
-    # Cloud Providers (validés ✓)
+
     "https://aws.amazon.com/blogs/aws/feed/",
-    
-    # Langages & Frameworks (validés ✓)
+
     "https://blog.golang.org/feed.atom",
     "https://blog.rust-lang.org/feed.xml",
     "https://reactjs.org/feed.xml",
-    
-    # DevOps & Infrastructure (validés ✓)
+
     "https://kubernetes.io/feed.xml",
     "https://www.docker.com/blog/feed/",
     "https://www.hashicorp.com/blog/feed.xml",
     "https://about.gitlab.com/atom.xml",
     "https://github.blog/feed/",
-    
-    # Tech News (validés ✓)
+
     "https://techcrunch.com/feed/",
     "https://arstechnica.com/feed/",
-    
-    # Developer Platforms (validés ✓)
+
     "https://stackoverflow.blog/feed/",
 ]
 
-# Tags Stack Overflow organisés par priorité pour rotation intelligente
-# Ceci permet de réduire les appels API de 4320/jour à ~720/jour
 
-# Haute priorité : Toujours scannés (langages et techs les plus populaires)
 STACKOVERFLOW_TAGS_HIGH = [
     "python", "javascript", "typescript", "java", "c#", "c++", "go", "rust",
     "react", "node.js", "docker", "kubernetes", "aws", "azure",
@@ -97,7 +84,6 @@ STACKOVERFLOW_TAGS_HIGH = [
     "git", "api", "rest", "microservices",
 ]
 
-# Priorité moyenne : Rotation toutes les 2-3 cycles
 STACKOVERFLOW_TAGS_MEDIUM = [
     "kotlin", "swift", "php", "ruby", "scala", "r", "dart", "flutter",
     "angular", "vue.js", "nextjs", "svelte", "django", "flask", "fastapi",
@@ -112,7 +98,6 @@ STACKOVERFLOW_TAGS_MEDIUM = [
     "devops", "cicd", "security", "authentication", "encryption",
 ]
 
-# Priorité basse : Rotation lente (toutes les 5-10 cycles)
 STACKOVERFLOW_TAGS_LOW = [
     "haskell", "perl", "julia", "elixir", "clojure", "lua", "groovy",
     "objective-c", "assembly", "fortran", "cobol", "shell", "bash", "powershell",
@@ -159,16 +144,14 @@ STACKOVERFLOW_TAGS_LOW = [
     "macos", "windows", "systemd", "cron", "ssh", "networking",
 ]
 
-# Configuration pour le système de rotation
-SO_BATCH_SIZE = 100  # Nombre maximum de tags par cycle (optimisé pour plus de volume)
-SO_ROTATION_CYCLE = 0  # Index de rotation (sera incrémenté à chaque cycle)
+SO_BATCH_SIZE = 100
+SO_ROTATION_CYCLE = 0
 
 STACKOVERFLOW_KEY = "rl_op3u9xnruk9ZXrLAf3MKMChQg"
 
-# Intervalles optimisés pour maximum de volume
-POLL_INTERVAL_HN = 120   # 2 minutes (au lieu de 5) - plus de stories HackerNews
-POLL_INTERVAL_SO = 300   # 5 minutes (au lieu de 10) - plus de questions Stack Overflow
-POLL_INTERVAL_RSS = 180  # 3 minutes (au lieu de 15) - plus d'articles RSS
+POLL_INTERVAL_HN = 120
+POLL_INTERVAL_SO = 300
+POLL_INTERVAL_RSS = 180
 
 ALL_KEYWORDS = [
     "python", "javascript", "typescript", "rust", "golang", "go", "java", "c++", "c#",
@@ -239,88 +222,68 @@ ALL_KEYWORDS = [
     "growth", "marketing", "revenue", "profit", "investor", "seed", "series a",
     "unicorn", "acquisition", "ipo", "pivot", "mvp", "product hunt", "indie hacker",
     "bootstrapped", "yc", "techstars", "b2b", "b2c",
-    # Carrière
     "developer", "engineer", "programmer", "coding", "programming", "software",
     "tech", "job", "hiring", "remote", "freelance", "interview", "salary", "career",
     "resume", "portfolio", "linkedin", "recruiter", "layoff", "junior", "senior",
     "staff", "principal", "cto", "vp engineering", "tech lead", "manager",
     "fullstack", "full-stack", "frontend", "front-end", "backend", "back-end",
-    # API
     "api", "rest", "restful", "restful-api", "grpc", "websocket", "soap", "openapi",
     "swagger", "microservices", "microservices-architecture", "api-gateway", "kong",
     "rabbitmq", "zeromq", "mqtt",
-    # Testing
     "testing", "unit-testing", "integration-testing", "pytest", "jest", "mocha",
     "selenium", "cypress", "playwright", "puppeteer", "testng", "junit", "tdd", "bdd",
-    # Architecture
     "design-patterns", "clean-architecture", "ddd", "domain-driven", "event-driven",
     "cqrs", "saga-pattern", "solid-principles", "solid",
-    # Serverless
     "serverless", "lambda", "functions", "faas",
-    # Gaming
     "gaming", "game dev", "game-development", "unity", "unity3d", "unreal",
     "unreal-engine4", "godot", "steam", "playstation", "xbox", "nintendo", "esport",
     "twitch", "discord", "vr", "ar", "metaverse", "roblox", "minecraft",
     "opengl", "vulkan", "directx",
-    # Hardware/IoT
     "hardware", "iot", "raspberry pi", "raspberry-pi", "arduino", "esp32",
     "embedded", "firmware", "chip", "cpu", "gpu", "tpu", "nvidia", "amd", "intel",
     "arm", "risc-v", "fpga", "asic", "3d printing", "robotics", "drone", "sensor",
     "micropython", "platformio",
-    # Tools
     "productivity", "notion", "obsidian", "roam", "logseq", "todoist", "linear",
     "jira", "asana", "trello", "slack", "teams", "zoom", "figma", "sketch", "adobe",
     "vscode", "vim", "neovim", "emacs", "jetbrains", "ide", "terminal", "git",
-    # Big Tech
     "apple", "google", "microsoft", "meta", "amazon", "netflix", "nvidia", "tesla",
     "spacex", "twitter", "x", "stripe", "shopify", "twilio", "datadog", "hashicorp",
     "elastic", "canva", "spotify", "uber",
-    # Open Source
     "opensource", "open source", "foss", "libre", "community", "conference",
     "meetup", "hackathon", "devrel", "advocacy", "contributor", "maintainer",
     "sponsor", "patreon", "github sponsors", "license", "mit", "gpl",
-    # News
     "trending", "viral", "news", "breaking", "announcement", "launch", "release",
     "update", "beta", "alpha", "v1", "v2", "roadmap", "changelog", "feature",
     "bug", "fix", "patch",
-    # Finance
     "fintech", "payment", "paypal", "banking", "neobank", "trading", "investing",
     "stock", "forex", "wealth", "budget", "credit", "loan", "insurance", "regtech",
     "money", "finance", "market", "economy", "inflation", "dollar", "fiat",
-    # Social
     "social media", "content", "creator", "influencer", "youtube", "tiktok",
     "instagram", "podcast", "blog", "newsletter", "substack", "medium", "hashnode",
     "dev.to", "reddit", "mastodon", "threads", "bluesky",
-    # Containers
     "containers", "docker-compose", "podman", "containerd", "kubernetes-helm",
     "kubernetes-operator", "service-mesh",
-    # Français
     "développeur", "développement", "programmation", "programmeur", "informatique",
     "logiciel", "ordinateur", "réseau", "données", "serveur", "sécurité",
     "intelligence artificielle", "apprentissage automatique", "base de données",
     "application", "site web", "coder", "nuage", "hébergement", "framework",
     "bibliothèque", "algorithme", "variable", "fonction", "classe", "objet", "interface",
-    # Espagnol
     "desarrollador", "desarrollo", "programación", "programador", "informática",
     "computadora", "ordenador", "red", "datos", "servidor", "seguridad",
     "inteligencia artificial", "aprendizaje automático", "base de datos",
     "aplicación", "sitio web", "código", "codificar", "nube", "alojamiento",
     "algoritmo", "interfaz",
-    # Portugais
     "desenvolvedor", "desenvolvimento", "programação", "computador", "rede",
     "segurança", "inteligência artificial", "aprendizado de máquina",
     "banco de dados", "aplicativo", "site", "codificar", "nuvem", "hospedagem", "variável",
-    # Allemand
     "entwickler", "entwicklung", "programmierung", "programmierer", "informatik",
     "rechner", "netzwerk", "daten", "sicherheit", "künstliche intelligenz",
     "maschinelles lernen", "datenbank", "anwendung", "webseite", "programmieren",
     "hosting", "algorithmus", "schnittstelle",
-    # Italien
     "sviluppatore", "sviluppo", "programmazione", "programmatore", "informatica",
     "rete", "dati", "sicurezza", "intelligenza artificiale",
     "apprendimento automatico", "applicazione", "sito web", "codice", "programmare",
     "algoritmo", "variabile", "funzione", "oggetto", "interfaccia",
-    # Néerlandais
     "ontwikkelaar", "ontwikkeling", "programmeren", "programmeur", "netwerk",
     "gegevens", "beveiliging", "kunstmatige intelligentie", "machinaal leren",
     "applicatie", "website", "coderen",
@@ -328,7 +291,6 @@ ALL_KEYWORDS = [
 
 ALL_KEYWORDS_SET = set(kw.lower() for kw in ALL_KEYWORDS)
 
-# Catégories pour classification
 KEYWORD_CATEGORIES = {
     "tech": ["python", "javascript", "typescript", "rust", "golang", "go", "java", "c++", "c#", "kotlin", "swift", "php", "ruby",
              "scala", "haskell", "perl", "lua", "r", "julia", "elixir", "clojure", "dart", "zig", "nim",
@@ -391,7 +353,6 @@ KEYWORD_CATEGORIES = {
 
 VALID_CATEGORIES = list(KEYWORD_CATEGORIES.keys())
 
-# Remapping: mots courants → tech keywords
 WORD_TO_TECH_REMAP = {
     "love": "python", "hate": "javascript", "happy": "react", "sad": "rust",
     "excited": "kubernetes", "amazing": "docker", "awesome": "aws", "great": "nodejs",

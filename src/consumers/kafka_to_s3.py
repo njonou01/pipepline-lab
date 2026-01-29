@@ -5,7 +5,6 @@ import boto3
 from datetime import datetime
 from kafka import KafkaConsumer
 
-# Configuration
 KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP", "localhost:9092")
 S3_BUCKET = os.getenv("S3_BUCKET", "uccnt-ef98cc0f-raw")
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
@@ -58,7 +57,6 @@ class KafkaToS3:
         data = self.buffers[topic]
         key = self.get_s3_key(topic)
 
-        # Convertir en NDJSON (newline-delimited JSON)
         content = "\n".join(json.dumps(record) for record in data)
 
         try:
@@ -95,12 +93,10 @@ class KafkaToS3:
                         topic = message.topic
                         self.buffers[topic].append(message.value)
 
-                        # Flush si buffer plein
                         if len(self.buffers[topic]) >= BATCH_SIZE:
                             self.flush_buffer(topic)
 
                 except StopIteration:
-                    # Timeout - flush tous les buffers
                     count = self.flush_all()
                     if count > 0:
                         total_processed += count

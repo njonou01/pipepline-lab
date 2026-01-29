@@ -34,12 +34,9 @@ def remap_content(text):
     original_keywords, mapped_keywords = [], []
     categories, categorized = set(), {}
     is_remapped = False
-    replacements = {}  # {mot_original: mot_tech}
+    replacements = {}
 
     for kw in ALL_KEYWORDS_SET:
-        # Utiliser \b pour les frontières de mots (plus standard et robuste)
-        # Permet de matcher "python," "python." "(python)" etc.
-        # Tout en évitant "scared" qui contient "c"
         pattern = rf"\b{re.escape(kw)}\b"
         if re.search(pattern, text_lower, re.IGNORECASE):
             original_keywords.append(kw)

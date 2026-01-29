@@ -32,14 +32,12 @@ def set_info(signum, frame):
     logging.info(">>> LOG LEVEL: INFO <<<")
 
 
-# Réduire le bruit des logs Kafka et WebSocket
 logging.getLogger("kafka").setLevel(logging.WARNING)
-logging.getLogger("kafka.consumer.fetcher").setLevel(logging.CRITICAL)  # Éviter "Fetch cancelled" pendant warmup
+logging.getLogger("kafka.consumer.fetcher").setLevel(logging.CRITICAL)
 logging.getLogger("websocket").setLevel(logging.WARNING)
 
-# Signaux pour changement à chaud (Unix)
 try:
-    signal.signal(signal.SIGUSR1, set_debug)  # kill -SIGUSR1 <pid> → DEBUG
-    signal.signal(signal.SIGUSR2, set_info)  # kill -SIGUSR2 <pid> → INFO
+    signal.signal(signal.SIGUSR1, set_debug)
+    signal.signal(signal.SIGUSR2, set_info)
 except AttributeError:
-    pass  # Windows
+    pass
